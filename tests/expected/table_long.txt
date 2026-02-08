@@ -1,0 +1,6 @@
+* *Name:* *Bold Item*
+* ◦ _Description:_ This is _italic_ text
+* ◦ _Notes:_ ~crossed~
+* *Name:* Another
+* ◦ _Description:_ Sample `code` here
+* ◦ _Notes:_ More text

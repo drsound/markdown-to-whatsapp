@@ -265,11 +265,139 @@ function renderBlockquote(token) {
 }
 
 /**
- * Render a table in ASCII art format using |-+ characters.
+ * Render a table with optimal format (ASCII with minimal padding or list).
  * @param {Object} token - Table token
- * @returns {string} Formatted table with ASCII borders
+ * @returns {string} Formatted table
  */
 function renderTable(token) {
+    // Check table format settings (default to 'auto' if not in browser)
+    const tableFormat = typeof document !== 'undefined'
+        ? document.querySelector('input[name="tableFormat"]:checked')?.value || 'auto'
+        : 'auto';
+
+    if (tableFormat === 'always') {
+        return renderTableAsList(token);
+    }
+
+    if (tableFormat === 'ascii') {
+        return renderTableAsAscii(token);
+    }
+
+    // 'auto' mode: try progressive padding removal
+    const threshold = typeof document !== 'undefined'
+        ? parseInt(document.getElementById('tableThreshold')?.value || '26', 10)
+        : 26;
+
+    const colCount = token.header.length;
+
+    // Try configurations in order:
+    // 1. Full padding
+    // 2. Remove right padding from last to first column
+    // 3. Remove left padding from last to first column
+
+    const configs = [];
+
+    // Full padding
+    configs.push({
+        leftPadding: Array(colCount).fill(true),
+        rightPadding: Array(colCount).fill(true)
+    });
+
+    // Remove right padding progressively (last to first column)
+    for (let i = colCount - 1; i >= 0; i--) {
+        const config = {
+            leftPadding: Array(colCount).fill(true),
+            rightPadding: Array(colCount).fill(true)
+        };
+        // Remove right padding for columns from i to end
+        for (let j = i; j < colCount; j++) {
+            config.rightPadding[j] = false;
+        }
+        configs.push(config);
+    }
+
+    // Remove left padding progressively (last to first column)
+    for (let i = colCount - 1; i >= 0; i--) {
+        const config = {
+            leftPadding: Array(colCount).fill(true),
+            rightPadding: Array(colCount).fill(false) // All right padding removed
+        };
+        // Remove left padding for columns from i to end
+        for (let j = i; j < colCount; j++) {
+            config.leftPadding[j] = false;
+        }
+        configs.push(config);
+    }
+
+    // Test each configuration
+    for (const config of configs) {
+        const width = calculateTableWidth(token, config);
+        if (width <= threshold) {
+            return renderTableAsAscii(token, config);
+        }
+    }
+
+    // If no configuration fits, use list format
+    return renderTableAsList(token);
+}
+
+/**
+ * Calculate the width of the ASCII table with given padding configuration.
+ * @param {Object} token - Table token
+ * @param {Object} paddingConfig - { leftPadding: [bool, ...], rightPadding: [bool, ...] }
+ * @returns {number} Total table width in characters
+ */
+function calculateTableWidth(token, paddingConfig = null) {
+    const headerCells = token.header.map(cell => renderPlainText(cell.tokens));
+    const bodyRows = token.rows.map(row => row.map(cell => renderPlainText(cell.tokens)));
+
+    const colCount = headerCells.length;
+
+    // Default: full padding for all columns
+    if (!paddingConfig) {
+        paddingConfig = {
+            leftPadding: Array(colCount).fill(true),
+            rightPadding: Array(colCount).fill(true)
+        };
+    }
+
+    let totalWidth = 1; // Start with left border
+
+    for (let i = 0; i < colCount; i++) {
+        let maxWidth = headerCells[i].length;
+        for (const row of bodyRows) {
+            if (row[i] && row[i].length > maxWidth) {
+                maxWidth = row[i].length;
+            }
+        }
+
+        // Add left padding if enabled for this column
+        if (paddingConfig.leftPadding[i]) {
+            totalWidth += 1;
+        }
+
+        // Add content width
+        totalWidth += maxWidth;
+
+        // Add right padding if enabled for this column
+        if (paddingConfig.rightPadding[i]) {
+            totalWidth += 1;
+        }
+
+        // Add separator
+        totalWidth += 1;
+    }
+
+    return totalWidth;
+}
+
+/**
+ * Render a table as ASCII art with configurable padding.
+ * @param {Object} token - Table token
+ * @param {Object} paddingConfig - { leftPadding: [bool, ...], rightPadding: [bool, ...] }
+ * @returns {string} ASCII table
+ */
+function renderTableAsAscii(token, paddingConfig = null) {
     // Extract all cell contents as PLAIN TEXT (no formatting markers)
     // since the table is inside a monospace block where formatting doesn't work
     const headerCells = token.header.map(cell => renderPlainText(cell.tokens));
@@ -291,16 +419,33 @@ function renderTable(token) {
         colWidths.push(maxWidth);
     }
 
+    // Default: full padding for all columns
+    if (!paddingConfig) {
+        paddingConfig = {
+            leftPadding: Array(colCount).fill(true),
+            rightPadding: Array(colCount).fill(true)
+        };
+    }
+
     // Helper to create a horizontal border line
     const createBorder = (left, mid, right, fill) => {
-        return left + colWidths.map(w => fill.repeat(w + 2)).join(mid) + right;
+        return left + colWidths.map((w, i) => {
+            const leftPad = paddingConfig.leftPadding[i] ? 1 : 0;
+            const rightPad = paddingConfig.rightPadding[i] ? 1 : 0;
+            return fill.repeat(w + leftPad + rightPad);
+        }).join(mid) + right;
     };
 
     // Helper to create a data row
     const createRow = (cells) => {
         const paddedCells = cells.map((cell, i) => {
-            const padding = colWidths[i] - cell.length;
-            return ' ' + cell + ' '.repeat(padding + 1);
+            const contentWidth = colWidths[i];
+            const padding = contentWidth - cell.length;
+
+            const leftPad = paddingConfig.leftPadding[i] ? ' ' : '';
+            const rightPad = paddingConfig.rightPadding[i] ? ' '.repeat(padding + 1) : ' '.repeat(padding);
+
+            return leftPad + cell + rightPad;
         });
         return '|' + paddedCells.join('|') + '|';
     };
@@ -326,6 +471,38 @@ function renderTable(token) {
     lines.push(createBorder('+', '+', '+', '-'));
 
     return '```\n' + lines.join('\n') + '\n```';
+}
+
+/**
+ * Render a table as a nested list (for wide tables).
+ * Format:
+ * * *Header1:* Value1
+ * * ◦ _Header2:_ Value2
+ * * ◦ _Header3:_ Value3
+ * @param {Object} token - Table token
+ * @returns {string} List-formatted table
+ */
+function renderTableAsList(token) {
+    const headers = token.header.map(cell => renderPlainText(cell.tokens));
+    const lines = [];
+
+    for (const row of token.rows) {
+        for (let i = 0; i < row.length; i++) {
+            const header = headers[i] || `Column ${i + 1}`;
+            // Use renderInline to preserve formatting in cell content
+            const value = renderInline(row[i].tokens);
+
+            if (i === 0) {
+                // First column: bold header
+                lines.push(`* *${header}:* ${value}`);
+            } else {
+                // Other columns: italic header with ◦ prefix
+                lines.push(`* ◦ _${header}:_ ${value}`);
+            }
+        }
+    }
+
+    return lines.join('\n');
 }
 
 /**
@@ -534,6 +711,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Convert on input changes.
     markdownInput.addEventListener('input', handleConversion);
+
+    // Convert on table format option changes
+    document.querySelectorAll('input[name="tableFormat"]').forEach(radio => {
+        radio.addEventListener('change', handleConversion);
+    });
+    const thresholdInput = document.getElementById('tableThreshold');
+    if (thresholdInput) {
+        thresholdInput.addEventListener('input', handleConversion);
+    }
 
     // Initial conversion for any pre-filled text.
     handleConversion();

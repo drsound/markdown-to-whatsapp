@@ -17,7 +17,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
 // Mock browser globals that script.js expects
-globalThis.document = { addEventListener: () => { } };
+globalThis.document = {
+    addEventListener: () => { },
+    // For table tests: use 'auto' so both ASCII (short) and list (long) formats are tested
+    querySelector: (selector) => {
+        if (selector === 'input[name="tableFormat"]:checked') {
+            return { value: 'auto' };
+        }
+        return null;
+    },
+    querySelectorAll: () => [],
+    getElementById: (id) => {
+        if (id === 'tableThreshold') {
+            return { value: '26' };
+        }
+        return null;
+    }
+};
 globalThis.marked = require('marked');
 
 // Import the converter from the actual script

@@ -46,14 +46,28 @@ Headers are converted to bold text with level-specific emoji prefixes:
 * **Task lists:** `- [x]` → `☑`, `- [ ]` → `☐`
 
 ### Tables
-Tables are rendered as ASCII art inside monospace blocks:
-```
-+--------+-------------+
-| Name   | Description |
-+========+=============+
-| Value  | Details     |
-+--------+-------------+
-```
+The converter supports **three strategies** for table rendering, selectable via the UI:
+
+1. **ASCII Table**
+   Standard responsive ASCII art inside monospace blocks.
+   ```
+   +--------+-------------+
+   | Name   | Description |
+   +========+=============+
+   | Value  | Details     |
+   +--------+-------------+
+   ```
+
+2. **Bulleted List**
+   Converts the table into a nested list, which is often more readable on mobile screens for complex data:
+   * *Name:* Value
+   * ◦ _Description:_ Details
+
+3. **Auto (Smart Switch)**
+   Automatically chooses the best format based on width:
+   * Tries to fit the table in ASCII format by progressively removing padding (right-side first, then left-side).
+   * If it fits within the configurable limit (default **26 chars**), it uses ASCII.
+   * Otherwise, it falls back to the **Bulleted List** format to prevent horizontal scrolling issues on WhatsApp.
 
 ### Other Elements
 * **Links:** `[text](url)` → `text (url)`
