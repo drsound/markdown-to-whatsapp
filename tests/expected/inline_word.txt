@@ -20,4 +20,4 @@ This is _italic_ text.
 
 This is ~strikethrough~ text.
 
-This is *bold and italic* text.
+This is _*bold and italic*_ text.

@@ -1,0 +1,37 @@
+*📌 Inline Styles Test*
+
+*🟠 Bold variants*
+
+*asterisk bold*
+*underscore bold*
+
+*🟠 Italic variants*
+
+_asterisk italic_
+_underscore italic_
+
+*🟠 Strikethrough*
+
+~strikethrough text~
+
+*🟠 Inline code*
+
+`simple code`
+`code with ` backtick`
+
+*🟠 Bold + Italic (all 6 variants)*
+
+*🟡 Uniform syntax (same character)*
+
+_*triple asterisk*_
+_*triple underscore*_
+
+*🟡 Mixed syntax (bold outer)*
+
+*_bold outer asterisk_*
+*_bold outer underscore_*
+
+*🟡 Mixed syntax (italic outer)*
+
+_*italic outer asterisk*_
+_*italic outer underscore*_

@@ -12,7 +12,7 @@ _italic_
 
 *📌 Combined Styles*
 
-*bold and italic*
+_*bold and italic*_
 
 superextremely
 

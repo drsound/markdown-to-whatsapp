@@ -28,7 +28,7 @@ The script uses the [marked](https://github.com/markedjs/marked) library for pro
 * **Italic:** `*text*` or `_text_` → `_text_`
 * **Strikethrough:** `~~text~~` → `~text~`
 * **Inline code:** `` `code` `` → `` `code` ``
-* **Bold+Italic:** `***text***` → `*text*` (uses bold only to avoid underscore visibility issues)
+* **Bold+Italic:** `***text***` → `_*text*_` (preserves both styles)
 
 ### Headers
 Headers are converted to bold text with level-specific emoji prefixes:
