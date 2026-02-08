@@ -482,31 +482,114 @@ function renderTableAsAscii(token, paddingConfig = null) {
     return '```\n' + lines.join('\n') + '\n```';
 }
 
+// Generic header keywords for Key-Value table detection (by language)
+const KV_HEADERS_EN = ['attribute', 'value', 'key', 'parameter', 'property', 'field', 'description', 'setting', 'option', 'name', 'detail', 'spec', 'specification', 'metric', 'measure', 'item'];
+const KV_HEADERS_IT = ['attributo', 'valore', 'chiave', 'parametro', 'proprietà', 'campo', 'descrizione', 'impostazione', 'opzione', 'nome', 'dettaglio', 'specifica', 'metrica', 'misura', 'elemento'];
+const KV_HEADERS_ES = ['atributo', 'valor', 'clave', 'parámetro', 'propiedad', 'campo', 'descripción', 'configuración', 'opción', 'nombre', 'detalle', 'especificación', 'métrica', 'medida', 'elemento'];
+const KV_HEADERS_FR = ['attribut', 'valeur', 'clé', 'paramètre', 'propriété', 'champ', 'description', 'réglage', 'option', 'nom', 'détail', 'spécification', 'métrique', 'mesure', 'élément'];
+const KV_HEADERS_PT = ['atributo', 'valor', 'chave', 'parâmetro', 'propriedade', 'campo', 'descrição', 'configuração', 'opção', 'nome', 'detalhe', 'especificação', 'métrica', 'medida', 'elemento'];
+const KV_HEADERS_DE = ['attribut', 'wert', 'schlüssel', 'parameter', 'eigenschaft', 'feld', 'beschreibung', 'einstellung', 'option', 'name', 'detail', 'spezifikation', 'metrik', 'messung', 'element'];
+const KV_HEADERS_RU = ['атрибут', 'значение', 'ключ', 'параметр', 'свойство', 'поле', 'описание', 'настройка', 'опция', 'имя', 'деталь', 'спецификация', 'метрика', 'измерение', 'элемент'];
+const KV_HEADERS_AR = ['سمة', 'قيمة', 'مفتاح', 'معامل', 'خاصية', 'حقل', 'وصف', 'إعداد', 'خيار', 'اسم', 'تفصيل', 'مواصفة', 'مقياس', 'قياس', 'عنصر'];
+const KV_HEADERS_HI = ['विशेषता', 'मान', 'कुंजी', 'पैरामीटर', 'संपत्ति', 'क्षेत्र', 'विवरण', 'सेटिंग', 'विकल्प', 'नाम', 'विस्तार', 'विनिर्देश', 'मीट्रिक', 'माप', 'तत्व'];
+const KV_HEADERS_BN = ['বৈশিষ্ট্য', 'মান', 'চাবি', 'প্যারামিটার', 'সম্পত্তি', 'ক্ষেত্র', 'বিবরণ', 'সেটিং', 'বিকল্প', 'নাম', 'বিস্তারিত', 'স্পেসিফিকেশন', 'মেট্রিক', 'পরিমাপ', 'উপাদান'];
+const KV_HEADERS_ID = ['atribut', 'nilai', 'kunci', 'parameter', 'properti', 'bidang', 'deskripsi', 'pengaturan', 'opsi', 'nama', 'detail', 'spesifikasi', 'metrik', 'ukuran', 'elemen'];
+
+const KEY_VALUE_HEADERS = [
+    ...KV_HEADERS_EN, ...KV_HEADERS_IT, ...KV_HEADERS_ES, ...KV_HEADERS_FR,
+    ...KV_HEADERS_PT, ...KV_HEADERS_DE, ...KV_HEADERS_RU, ...KV_HEADERS_AR,
+    ...KV_HEADERS_HI, ...KV_HEADERS_BN, ...KV_HEADERS_ID
+];
+
+/**
+ * Detect table type based on structure and content.
+ * Returns: 'keyvalue' | 'horizontal' | 'vertical'
+ * 
+ * Priority:
+ * 1. Key-Value table: 2 columns with generic headers (Attribute/Value, etc.)
+ * 2. Horizontal table: first column cells contain bold text (parameter names)
+ * 3. Vertical table: standard row-based grouping
+ * 
+ * @param {Object} token - Table token
+ * @returns {string} Table type
+ */
+function detectTableType(token) {
+    const headers = token.header.map(cell => renderPlainText(cell.tokens).toLowerCase().trim());
+
+    // Check for Key-Value table (2 columns with generic headers)
+    if (headers.length === 2) {
+        const bothGeneric = headers.every(h =>
+            KEY_VALUE_HEADERS.some(kw => h.includes(kw))
+        );
+        if (bothGeneric) {
+            return 'keyvalue';
+        }
+    }
+
+    // Check for Horizontal table (most first-column cells are bold)
+    let boldCount = 0;
+    for (const row of token.rows) {
+        if (row[0] && row[0].tokens) {
+            const hasBold = row[0].tokens.some(t =>
+                t.type === 'strong' ||
+                (t.tokens && t.tokens.some(st => st.type === 'strong'))
+            );
+            if (hasBold) boldCount++;
+        }
+    }
+    if (boldCount > token.rows.length / 2) {
+        return 'horizontal';
+    }
+
+    // Default: Vertical table
+    return 'vertical';
+}
+
 /**
  * Render a table as a nested list (for wide tables).
- * Format:
- * * *Header1:* Value1
- * * ◦ _Header2:_ Value2
- * * ◦ _Header3:_ Value3
+ * Automatically detects table type:
+ * - Key-Value (2 cols, generic headers): each row becomes key: value
+ * - Horizontal (first column bold): groups by column headers
+ * - Vertical (standard): groups by rows
  * @param {Object} token - Table token
  * @returns {string} List-formatted table
  */
 function renderTableAsList(token) {
     const headers = token.header.map(cell => renderPlainText(cell.tokens));
+    const tableType = detectTableType(token);
     const lines = [];
 
-    for (const row of token.rows) {
-        for (let i = 0; i < row.length; i++) {
-            const header = headers[i] || `Column ${i + 1}`;
-            // Use renderInline to preserve formatting in cell content
-            const value = renderInline(row[i].tokens);
+    if (tableType === 'keyvalue') {
+        // Key-Value table: simple key: value format
+        for (const row of token.rows) {
+            const key = renderInline(row[0].tokens);
+            const value = renderInline(row[1].tokens);
+            lines.push(`* *${key}:* ${value}`);
+        }
+    } else if (tableType === 'horizontal') {
+        // Horizontal table: group by column (skip first column header)
+        for (let col = 1; col < headers.length; col++) {
+            const columnHeader = headers[col];
+            lines.push(`* *${columnHeader}*`);
 
-            if (i === 0) {
-                // First column: bold header
-                lines.push(`* *${header}:* ${value}`);
-            } else {
-                // Other columns: italic header with ◦ prefix
-                lines.push(`* ◦ _${header}:_ ${value}`);
+            for (const row of token.rows) {
+                const rowLabel = renderPlainText(row[0].tokens);
+                const value = renderInline(row[col].tokens);
+                lines.push(`* ◦ _${rowLabel}:_ ${value}`);
+            }
+        }
+    } else {
+        // Vertical table: group by row
+        for (const row of token.rows) {
+            for (let i = 0; i < row.length; i++) {
+                const header = headers[i] || `Column ${i + 1}`;
+                const value = renderInline(row[i].tokens);
+
+                if (i === 0) {
+                    lines.push(`* *${header}:* ${value}`);
+                } else {
+                    lines.push(`* ◦ _${header}:_ ${value}`);
+                }
             }
         }
     }
