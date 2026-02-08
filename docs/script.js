@@ -542,13 +542,13 @@ function renderInline(tokens) {
 
         switch (token.type) {
             case 'strong':
-                // Bold: **text** → *text*
+                // Bold: **text** or __text__ → *text*
                 if (isPartialWord) {
                     // Skip formatting for partial word - use plain text
                     result.push(renderPlainText(token.tokens));
                 } else if (token.tokens && token.tokens.length === 1 && token.tokens[0].type === 'em') {
-                    // Bold+italic: ***text*** → just use bold
-                    result.push('*' + renderInline(token.tokens[0].tokens) + '*');
+                    // Bold+italic: ***text***, **_text_**, __*text*__ → *_text_*
+                    result.push('*_' + renderInline(token.tokens[0].tokens) + '_*');
                 } else {
                     result.push('*' + renderInline(token.tokens) + '*');
                 }
@@ -559,8 +559,8 @@ function renderInline(tokens) {
                 if (isPartialWord) {
                     result.push(renderPlainText(token.tokens));
                 } else if (token.tokens && token.tokens.length === 1 && token.tokens[0].type === 'strong') {
-                    // Italic+bold: ***text*** → just use bold
-                    result.push('*' + renderInline(token.tokens[0].tokens) + '*');
+                    // Italic+bold: _**text**_, *__text__* → _*text*_
+                    result.push('_*' + renderInline(token.tokens[0].tokens) + '*_');
                 } else {
                     result.push('_' + renderInline(token.tokens) + '_');
                 }
