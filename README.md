@@ -59,9 +59,36 @@ The converter supports **three strategies** for table rendering, selectable via 
    ```
 
 2. **Bulleted List**
-   Converts the table into a nested list, which is often more readable on mobile screens for complex data:
-   * *Name:* Value
-   * ◦ _Description:_ Details
+   Converts the table into a nested list. The converter **automatically detects** the table orientation:
+
+   * **Key-Value tables** (2 columns with generic headers like "Attribute/Value"):
+     ```
+     * *CPU:* Intel Xeon
+     * *RAM:* 64 GB
+     * *Storage:* 1 TB SSD
+     ```
+   
+   * **Horizontal tables** (first column cells are bold = parameters):
+     ```
+     * *Proxmox*
+     * ◦ _Kernel:_ KVM
+     * ◦ _License:_ AGPL v3
+     * *ESXi*
+     * ◦ _Kernel:_ VMkernel
+     * ◦ _License:_ Proprietary
+     ```
+   
+   * **Vertical tables** (standard row-based, 3+ columns):
+     ```
+     * *Product:* Laptop
+     * ◦ _Price:_ $999
+     * ◦ _Stock:_ 50
+     * *Product:* Smartphone
+     * ◦ _Price:_ $599
+     * ◦ _Stock:_ 100
+     ```
+   
+   Key-Value detection supports **11 languages**: English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and Indonesian.
 
 3. **Auto (Smart Switch)**
    Automatically chooses the best format based on width:
