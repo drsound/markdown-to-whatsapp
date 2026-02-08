@@ -242,7 +242,7 @@ function renderList(token, depth = 0) {
             content = item.text || '';
         }
 
-        items.push(`${prefix} ${content}`);
+        items.push(`${prefix} ${content.replace(/\n/g, ' ')}`);
         // Add nested lists after the item
         for (const nested of nestedParts) {
             items.push(nested);
