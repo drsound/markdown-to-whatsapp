@@ -4,7 +4,7 @@
 
 /**
  * Emojis to prepend to header lines by level.
- * @type {Record}
+ * @type {Record<number, string>}
  */
 const HEADER_EMOJIS = {
     1: '📌',
@@ -15,110 +15,497 @@ const HEADER_EMOJIS = {
     6: '⚫️'
 };
 
-/**
- * Unique placeholders used during tokenization to avoid conflicts.
- * Designed to be unlikely in user input.
- * @type {{ LIST_ITEM: string; BOLD_ITALIC_OPEN: string; BOLD_ITALIC_CLOSE: string; BOLD: string }}
- */
-const PLACEHOLDERS = {
-    LIST_ITEM: 'W5GL8rMkqLbaY25X',
-    BOLD_ITALIC_OPEN: 'xygnaY9Es5J3gzyg',
-    BOLD_ITALIC_CLOSE: 'U5YyaXpRPm4Nt6az',
-    BOLD: 'gqR8z654Q388KAg9'
-};
-
-
 // =================================================================================================
-// MAIN CONVERSION LOGIC
+// MAIN CONVERSION LOGIC (using marked lexer)
 // =================================================================================================
 
 /**
- * Convert Markdown into a WhatsApp-friendly format using a two-phase
- * tokenize-then-render pipeline to avoid formatting conflicts.
+ * Convert Markdown into a WhatsApp-friendly format using the marked lexer
+ * for proper AST-based parsing instead of regex substitutions.
  *
- * Notes/limitations:
- * - Triple backticks must be on their own line; content inside is preserved verbatim; no language fences.
- * - Links [text](url) become "text (url)".
- * - ~~strikethrough~~ becomes ~strikethrough~ (WhatsApp dialect).
- * - Headers (# ... ######) render as bold with a leading emoji; inner * and _ are stripped intentionally.
- * - Bold (** or __) and italics (* or _) are normalized to WhatsApp syntax; *** becomes *_..._*.
- * - Inline code (`...`), blockquotes (>), tables, and images are not specially handled.
- * - Lists and headers are recognized only at line start; nested list indentation is not preserved beyond marker replacement.
+ * Supported conversions:
+ * - **bold** or __bold__ → *bold*
+ * - *italic* or _italic_ → _italic_
+ * - ***bold+italic*** → *_text_*
+ * - ~~strikethrough~~ → ~strikethrough~
+ * - `code` → `code`
+ * - ```code blocks``` → ```code blocks```
+ * - [text](url) → text (url)
+ * - Headers → *emoji Header*
+ * - Lists → preserved with proper markers
+ * - Blockquotes → > prefix preserved
  *
  * @param {string} markdownText - The Markdown input.
  * @returns {string} The converted WhatsApp-compatible text.
  */
 function convertTextToWhatsapp(markdownText) {
-    let inCodeBlock = false;
+    if (!markdownText.trim()) {
+        return '';
+    }
 
-    // --- Phase 1: Tokenization ---
-    // Process the text line-by-line to apply transformations in a safe order.
-    const tokenizedLines = markdownText.split('\n').map(line => {
-        // 1.1 Initial cleanup: remove trailing whitespace.
-        let processedLine = line.trimEnd();
-
-        // 1.2 Code block handling: toggle state on lines that are exactly ```; preserve contents verbatim.
-        if (processedLine.trim().startsWith('```')) {
-            inCodeBlock = !inCodeBlock;
-            return processedLine;
-        }
-        if (inCodeBlock) {
-            return processedLine;
-        }
-
-        // 1.3 Tokenization and direct conversion pipeline (order is critical).
-
-        // 1.3.1 Escape sanitization: unescape Markdown punctuation we support.
-        // Safe because later passes replace conflicting markers with placeholders.
-        processedLine = processedLine.replace(/\\([\\`*_{}[\]()#+.!|~>-])/g, '$1');
-
-        // 1.3.2 Direct link conversion: [text](url) -> text (url)
-        processedLine = processedLine.replace(/\[([^\]]+)]\(([^)]+)\)/g, '$1 ($2)');
-
-        // 1.3.3 Strikethrough: ~~text~~ -> ~text~ (WhatsApp)
-        processedLine = processedLine.replace(/~~(.+?)~~/g, '~$1~');
-
-        // 1.3.4 Headers: convert to bold + emoji; strip inner emphasis markers by policy.
-        const headerMatch = processedLine.match(/^(#{1,6})\s+(.+)/);
-        if (headerMatch) {
-            const level = headerMatch[1].length;
-            let content = headerMatch[2].trim();
-            // Strip pre-existing * and _ to avoid nested emphasis in headers (intentional policy).
-            content = content.replace(/[*_]/g, '');
-            const emoji = HEADER_EMOJIS[level] || HEADER_EMOJIS[6];
-            // Tokenize the entire header line for bolding.
-            processedLine = `${PLACEHOLDERS.BOLD}${emoji} ${content}${PLACEHOLDERS.BOLD}`;
-        }
-
-        // 1.3.5 Ordered list spacing: normalize to a single space after "N." at line start.
-        processedLine = processedLine.replace(/^(\s*\d+\.)\s+/g, '$1 ');
-
-        // 1.3.6 List items: replace unordered list markers with a placeholder.
-        processedLine = processedLine.replace(/^(\s*)[*+-]\s+/g, `$1${PLACEHOLDERS.LIST_ITEM} `);
-
-        // 1.3.7 Combined styles tokenization: ***...*** or ___...___ -> placeholders first to avoid conflicts.
-        processedLine = processedLine.replace(/(\*\*\*|___)(.+?)\1/g, `${PLACEHOLDERS.BOLD_ITALIC_OPEN}$2${PLACEHOLDERS.BOLD_ITALIC_CLOSE}`);
-
-        // 1.3.8 Bold tokenization: **...** or __...__ -> placeholder.
-        processedLine = processedLine.replace(/(\*\*|__)(.+?)\1/g, `${PLACEHOLDERS.BOLD}$2${PLACEHOLDERS.BOLD}`);
-
-        // 1.3.9 Italic conversion last to avoid consuming bold markers: *...* or _..._ -> _..._
-        processedLine = processedLine.replace(/([*_])(.+?)\1/g, '_$2_');
-
-        return processedLine;
-    });
-
-    const tokenizedText = tokenizedLines.join('\n');
-
-    // --- Phase 2: Rendering ---
-    // Replace placeholders with final WhatsApp formatting.
-    return tokenizedText
-        .replace(new RegExp(PLACEHOLDERS.LIST_ITEM, 'g'), '*')
-        .replace(new RegExp(PLACEHOLDERS.BOLD_ITALIC_OPEN, 'g'), '*_')
-        .replace(new RegExp(PLACEHOLDERS.BOLD_ITALIC_CLOSE, 'g'), '_*')
-        .replace(new RegExp(PLACEHOLDERS.BOLD, 'g'), '*');
+    const tokens = marked.lexer(markdownText);
+    return renderTokens(tokens).trim();
 }
 
+/**
+ * Render an array of block-level tokens to WhatsApp format.
+ * @param {Array} tokens - Array of marked tokens
+ * @returns {string} WhatsApp-formatted text
+ */
+function renderTokens(tokens) {
+    const result = [];
+
+    for (const token of tokens) {
+        const rendered = renderToken(token);
+        if (rendered !== null && rendered !== undefined) {
+            result.push(rendered);
+        }
+    }
+
+    return result.join('\n\n');
+}
+
+/**
+ * Render a single block-level token to WhatsApp format.
+ * @param {Object} token - A marked token
+ * @returns {string|null} WhatsApp-formatted text
+ */
+function renderToken(token) {
+    switch (token.type) {
+        case 'heading':
+            return renderHeading(token);
+
+        case 'paragraph':
+            return renderInline(token.tokens);
+
+        case 'text':
+            // Top-level text (e.g., in loose lists)
+            if (token.tokens) {
+                return renderInline(token.tokens);
+            }
+            return token.text;
+
+        case 'code':
+            return renderCodeBlock(token);
+
+        case 'list':
+            return renderList(token);
+
+        case 'blockquote':
+            return renderBlockquote(token);
+
+        case 'hr':
+            return '───────────────';
+
+        case 'space':
+            return null; // Skip empty space tokens
+
+        case 'html':
+            return token.text; // Pass through HTML as-is
+
+        case 'table':
+            return renderTable(token);
+
+        default:
+            // Fallback: return raw text if available
+            return token.raw || '';
+    }
+}
+
+/**
+ * Render a heading token.
+ * Headers are rendered as bold with an emoji prefix.
+ * Any bold markers inside are stripped to avoid nested asterisks which WhatsApp doesn't support.
+ * @param {Object} token - Heading token with depth and tokens
+ * @returns {string} Formatted heading
+ */
+function renderHeading(token) {
+    const emoji = HEADER_EMOJIS[token.depth] || HEADER_EMOJIS[6];
+    // Use a special render mode that strips bold markers to avoid *header with *bold* inside*
+    const content = renderInlineForHeader(token.tokens);
+    return `*${emoji} ${content}*`;
+}
+
+/**
+ * Render inline tokens for headers (bold markers stripped).
+ * @param {Array} tokens - Array of inline tokens
+ * @returns {string} Text with bold markers stripped
+ */
+function renderInlineForHeader(tokens) {
+    if (!tokens || !Array.isArray(tokens)) {
+        return '';
+    }
+
+    return tokens.map(token => {
+        switch (token.type) {
+            case 'strong':
+                // Skip bold marker, just render content (header is already bold)
+                return renderInlineForHeader(token.tokens);
+
+            case 'em':
+                // Keep italic in headers
+                return '_' + renderInlineForHeader(token.tokens) + '_';
+
+            case 'del':
+                return '~' + renderInlineForHeader(token.tokens) + '~';
+
+            case 'codespan':
+                return '`' + token.text + '`';
+
+            case 'link':
+                return renderInlineForHeader(token.tokens) + ' (' + token.href + ')';
+
+            case 'text':
+                return unescapeText(token.text);
+
+            case 'escape':
+                return token.text;
+
+            default:
+                return token.raw || token.text || '';
+        }
+    }).join('');
+}
+
+/**
+ * Render a code block.
+ * @param {Object} token - Code token
+ * @returns {string} Formatted code block
+ */
+function renderCodeBlock(token) {
+    return '```' + token.text + '```';
+}
+
+/**
+ * Render a list (ordered or unordered).
+ * Uses different bullet symbols for nested levels instead of indentation.
+ * @param {Object} token - List token
+ * @param {number} depth - Nesting depth (0 = top level)
+ * @returns {string} Formatted list
+ */
+function renderList(token, depth = 0) {
+    const items = [];
+
+    token.items.forEach((item, index) => {
+        let prefix;
+        if (token.ordered) {
+            const start = token.start || 1;
+            prefix = `${start + index}.`;
+        } else {
+            // Check for task list items
+            if (item.task) {
+                prefix = item.checked ? '☑' : '☐';
+            } else {
+                // Use WhatsApp's * character, then add ◦ for each nesting level
+                // Level 1: *
+                // Level 2: * ◦
+                // Level 3: * ◦ ◦
+                // etc.
+                if (depth === 0) {
+                    prefix = '*';
+                } else {
+                    prefix = '* ' + '◦ '.repeat(depth).trim();
+                }
+            }
+        }
+
+        // Render item content
+        let content;
+        const nestedParts = [];
+
+        if (item.tokens) {
+            // Render nested content, handling nested lists
+            const textParts = [];
+            for (const subToken of item.tokens) {
+                if (subToken.type === 'list') {
+                    // Nested list - render with increased depth
+                    nestedParts.push(renderList(subToken, depth + 1));
+                } else {
+                    textParts.push(renderToken(subToken) || '');
+                }
+            }
+            content = textParts.join('').trim();
+        } else {
+            content = item.text || '';
+        }
+
+        items.push(`${prefix} ${content}`);
+        // Add nested lists after the item
+        for (const nested of nestedParts) {
+            items.push(nested);
+        }
+    });
+
+    return items.join('\n');
+}
+
+/**
+ * Render a blockquote.
+ * Handles nested blockquotes by detecting inner blockquote tokens.
+ * @param {Object} token - Blockquote token
+ * @returns {string} Formatted blockquote
+ */
+function renderBlockquote(token) {
+    const lines = [];
+
+    for (const subToken of token.tokens) {
+        if (subToken.type === 'blockquote') {
+            // Nested blockquote - add extra > prefix
+            const nested = renderBlockquote(subToken);
+            lines.push(nested.split('\n').map(line => '> ' + line).join('\n'));
+        } else {
+            const content = renderToken(subToken);
+            if (content) {
+                lines.push(content.split('\n').map(line => '> ' + line).join('\n'));
+            }
+        }
+    }
+
+    return lines.join('\n');
+}
+
+/**
+ * Render a table in ASCII art format using |-+ characters.
+ * @param {Object} token - Table token
+ * @returns {string} Formatted table with ASCII borders
+ */
+function renderTable(token) {
+    // Extract all cell contents as PLAIN TEXT (no formatting markers)
+    // since the table is inside a monospace block where formatting doesn't work
+    const headerCells = token.header.map(cell => renderPlainText(cell.tokens));
+    const bodyRows = token.rows.map(row =>
+        row.map(cell => renderPlainText(cell.tokens))
+    );
+
+    // Calculate column widths (max of header and all body cells)
+    const colCount = headerCells.length;
+    const colWidths = [];
+
+    for (let i = 0; i < colCount; i++) {
+        let maxWidth = headerCells[i].length;
+        for (const row of bodyRows) {
+            if (row[i] && row[i].length > maxWidth) {
+                maxWidth = row[i].length;
+            }
+        }
+        colWidths.push(maxWidth);
+    }
+
+    // Helper to create a horizontal border line
+    const createBorder = (left, mid, right, fill) => {
+        return left + colWidths.map(w => fill.repeat(w + 2)).join(mid) + right;
+    };
+
+    // Helper to create a data row
+    const createRow = (cells) => {
+        const paddedCells = cells.map((cell, i) => {
+            const padding = colWidths[i] - cell.length;
+            return ' ' + cell + ' '.repeat(padding + 1);
+        });
+        return '|' + paddedCells.join('|') + '|';
+    };
+
+    // Build the table
+    const lines = [];
+
+    // Top border
+    lines.push(createBorder('+', '+', '+', '-'));
+
+    // Header row
+    lines.push(createRow(headerCells));
+
+    // Header separator (thicker)
+    lines.push(createBorder('+', '+', '+', '='));
+
+    // Body rows
+    for (const row of bodyRows) {
+        lines.push(createRow(row));
+    }
+
+    // Bottom border
+    lines.push(createBorder('+', '+', '+', '-'));
+
+    return '```\n' + lines.join('\n') + '\n```';
+}
+
+/**
+ * Render inline tokens to WhatsApp format.
+ * This handles bold, italic, strikethrough, code, links, etc.
+ * @param {Array} tokens - Array of inline tokens
+ * @returns {string} WhatsApp-formatted inline text
+ */
+function renderInline(tokens) {
+    if (!tokens || !Array.isArray(tokens)) {
+        return '';
+    }
+
+    const result = [];
+
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const prevToken = tokens[i - 1];
+        const nextToken = tokens[i + 1];
+
+        // Check if this formatting token is adjacent to text (inside a word)
+        // WhatsApp doesn't support partial-word formatting
+        const isAdjacentToPrev = prevToken && prevToken.type === 'text' &&
+            prevToken.text && !/\s$/.test(prevToken.text);
+        const isAdjacentToNext = nextToken && nextToken.type === 'text' &&
+            nextToken.text && !/^\s/.test(nextToken.text);
+        const isPartialWord = isAdjacentToPrev || isAdjacentToNext;
+
+        switch (token.type) {
+            case 'strong':
+                // Bold: **text** → *text*
+                if (isPartialWord) {
+                    // Skip formatting for partial word - use plain text
+                    result.push(renderPlainText(token.tokens));
+                } else if (token.tokens && token.tokens.length === 1 && token.tokens[0].type === 'em') {
+                    // Bold+italic: ***text*** → just use bold
+                    result.push('*' + renderInline(token.tokens[0].tokens) + '*');
+                } else {
+                    result.push('*' + renderInline(token.tokens) + '*');
+                }
+                break;
+
+            case 'em':
+                // Italic: *text* or _text_ → _text_
+                if (isPartialWord) {
+                    result.push(renderPlainText(token.tokens));
+                } else if (token.tokens && token.tokens.length === 1 && token.tokens[0].type === 'strong') {
+                    // Italic+bold: ***text*** → just use bold
+                    result.push('*' + renderInline(token.tokens[0].tokens) + '*');
+                } else {
+                    result.push('_' + renderInline(token.tokens) + '_');
+                }
+                break;
+
+            case 'del':
+                // Strikethrough: ~~text~~ → ~text~
+                if (isPartialWord) {
+                    result.push(renderPlainText(token.tokens));
+                } else {
+                    result.push('~' + renderInline(token.tokens) + '~');
+                }
+                break;
+
+            case 'codespan':
+                // Inline code: `text` → `text`
+                result.push('`' + token.text + '`');
+                break;
+
+            case 'link':
+                // Link: [text](url) → text (url)
+                result.push(`${renderInline(token.tokens)} (${token.href})`);
+                break;
+
+            case 'image':
+                // Image: ![alt](url) → [alt: url]
+                result.push(`[${token.text}: ${token.href}]`);
+                break;
+
+            case 'text':
+                // Plain text - handle escaped characters
+                result.push(unescapeText(token.text));
+                break;
+
+            case 'escape':
+                // Escaped character - use Unicode look-alikes that WhatsApp won't interpret
+                result.push(escapeForWhatsApp(token.text));
+                break;
+
+            case 'br':
+                result.push('\n');
+                break;
+
+            case 'html':
+                result.push(token.text);
+                break;
+
+            default:
+                // Fallback
+                result.push(token.raw || token.text || '');
+        }
+    }
+
+    return result.join('');
+}
+
+/**
+ * Unescape common HTML entities that marked may produce.
+ * @param {string} text - Text to unescape
+ * @returns {string} Unescaped text
+ */
+function unescapeText(text) {
+    if (!text) return '';
+    return text
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+}
+
+/**
+ * Convert Markdown formatting characters to Unicode look-alikes.
+ * This prevents WhatsApp from interpreting escaped characters as formatting.
+ * @param {string} char - The escaped character
+ * @returns {string} Unicode look-alike character
+ */
+function escapeForWhatsApp(char) {
+    const lookAlikes = {
+        '*': '∗',  // U+2217 ASTERISK OPERATOR
+        '_': '＿', // U+FF3F FULLWIDTH LOW LINE
+        '~': '∼',  // U+223C TILDE OPERATOR
+        '`': 'ˋ',  // U+02CB MODIFIER LETTER GRAVE ACCENT
+    };
+    return lookAlikes[char] || char;
+}
+
+/**
+ * Render inline tokens as plain text (no formatting markers).
+ * Used for content inside monospace blocks like tables where formatting doesn't work.
+ * @param {Array} tokens - Array of inline tokens
+ * @returns {string} Plain text without formatting markers
+ */
+function renderPlainText(tokens) {
+    if (!tokens || !Array.isArray(tokens)) {
+        return '';
+    }
+
+    return tokens.map(token => {
+        switch (token.type) {
+            case 'strong':
+            case 'em':
+            case 'del':
+                // Strip formatting markers, just return content
+                return renderPlainText(token.tokens);
+
+            case 'codespan':
+                // Keep code content but without backticks
+                return token.text;
+
+            case 'link':
+                // Link as "text (url)"
+                return renderPlainText(token.tokens) + ' (' + token.href + ')';
+
+            case 'image':
+                return '[' + token.text + ']';
+
+            case 'text':
+                return unescapeText(token.text);
+
+            case 'escape':
+                return token.text;
+
+            case 'br':
+                return ' ';
+
+            default:
+                return token.raw || token.text || '';
+        }
+    }).join('');
+}
 
 // =================================================================================================
 // DOM MANIPULATION AND EVENT LISTENERS
@@ -137,7 +524,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handle real-time conversion as the user types.
      */
     function handleConversion() {
-        whatsappOutput.value = convertTextToWhatsapp(markdownInput.value);
+        try {
+            whatsappOutput.value = convertTextToWhatsapp(markdownInput.value);
+        } catch (error) {
+            console.error('Conversion error:', error);
+            whatsappOutput.value = 'Error during conversion. Check console for details.';
+        }
     }
 
     // Convert on input changes.
@@ -168,3 +560,12 @@ document.addEventListener('DOMContentLoaded', () => {
         window.getSelection().removeAllRanges();
     });
 });
+
+// =================================================================================================
+// EXPORTS (for Node.js testing)
+// =================================================================================================
+
+// Export for Node.js while keeping browser compatibility
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { convertTextToWhatsapp };
+}
