@@ -19,6 +19,10 @@ const HEADER_EMOJIS = {
 // MAIN CONVERSION LOGIC (using marked lexer)
 // =================================================================================================
 
+// Cached conversion options (set at start of each conversion)
+let _tableFormat = 'auto';
+let _tableThreshold = 26;
+
 /**
  * Convert Markdown into a WhatsApp-friendly format using the marked lexer
  * for proper AST-based parsing instead of regex substitutions.
@@ -41,6 +45,15 @@ const HEADER_EMOJIS = {
 function convertTextToWhatsapp(markdownText) {
     if (!markdownText.trim()) {
         return '';
+    }
+
+    // Cache UI settings once at start of conversion (avoids repeated DOM queries)
+    if (typeof document !== 'undefined') {
+        _tableFormat = document.querySelector('input[name="tableFormat"]:checked')?.value || 'auto';
+        _tableThreshold = parseInt(document.getElementById('tableThreshold')?.value || '26', 10);
+    } else {
+        _tableFormat = 'auto';
+        _tableThreshold = 26;
     }
 
     const tokens = marked.lexer(markdownText);
@@ -265,36 +278,12 @@ function renderBlockquote(token) {
 }
 
 /**
- * Render a table with optimal format (ASCII with minimal padding or list).
- * @param {Object} token - Table token
- * @returns {string} Formatted table
+ * Generate all padding configurations for progressive removal.
+ * Order: full padding → remove right (last to first) → remove left (last to first)
+ * @param {number} colCount - Number of columns
+ * @returns {Array} Array of padding config objects
  */
-function renderTable(token) {
-    // Check table format settings (default to 'auto' if not in browser)
-    const tableFormat = typeof document !== 'undefined'
-        ? document.querySelector('input[name="tableFormat"]:checked')?.value || 'auto'
-        : 'auto';
-
-    if (tableFormat === 'always') {
-        return renderTableAsList(token);
-    }
-
-    if (tableFormat === 'ascii') {
-        return renderTableAsAscii(token);
-    }
-
-    // 'auto' mode: try progressive padding removal
-    const threshold = typeof document !== 'undefined'
-        ? parseInt(document.getElementById('tableThreshold')?.value || '26', 10)
-        : 26;
-
-    const colCount = token.header.length;
-
-    // Try configurations in order:
-    // 1. Full padding
-    // 2. Remove right padding from last to first column
-    // 3. Remove left padding from last to first column
-
+function generatePaddingConfigs(colCount) {
     const configs = [];
 
     // Full padding
@@ -309,7 +298,6 @@ function renderTable(token) {
             leftPadding: Array(colCount).fill(true),
             rightPadding: Array(colCount).fill(true)
         };
-        // Remove right padding for columns from i to end
         for (let j = i; j < colCount; j++) {
             config.rightPadding[j] = false;
         }
@@ -320,19 +308,40 @@ function renderTable(token) {
     for (let i = colCount - 1; i >= 0; i--) {
         const config = {
             leftPadding: Array(colCount).fill(true),
-            rightPadding: Array(colCount).fill(false) // All right padding removed
+            rightPadding: Array(colCount).fill(false)
         };
-        // Remove left padding for columns from i to end
         for (let j = i; j < colCount; j++) {
             config.leftPadding[j] = false;
         }
         configs.push(config);
     }
 
+    return configs;
+}
+
+/**
+ * Render a table with optimal format (ASCII with minimal padding or list).
+ * @param {Object} token - Table token
+ * @returns {string} Formatted table
+ */
+function renderTable(token) {
+    // Use cached settings (set at start of conversion)
+    if (_tableFormat === 'always') {
+        return renderTableAsList(token);
+    }
+
+    if (_tableFormat === 'ascii') {
+        return renderTableAsAscii(token);
+    }
+
+    // 'auto' mode: try progressive padding removal
+
+    const configs = generatePaddingConfigs(token.header.length);
+
     // Test each configuration
     for (const config of configs) {
         const width = calculateTableWidth(token, config);
-        if (width <= threshold) {
+        if (width <= _tableThreshold) {
             return renderTableAsAscii(token, config);
         }
     }
