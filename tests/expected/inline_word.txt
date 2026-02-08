@@ -1,0 +1,23 @@
+*📌 Inline formatting (partial word)*
+
+These should NOT be formatted because they are inside words:
+
+superboldly
+
+superitalicly
+
+superstrikely
+
+superbolditalicly
+
+───────────────
+
+*📌 Standalone formatting (should work)*
+
+This is *bold* text.
+
+This is _italic_ text.
+
+This is ~strikethrough~ text.
+
+This is *bold and italic* text.

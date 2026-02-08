@@ -1,0 +1,25 @@
+*📌 Basic Text Styles*
+
+*bold*
+
+_italic_
+
+~strikethrough~
+
+`inline code`
+
+───────────────
+
+*📌 Combined Styles*
+
+*bold and italic*
+
+superextremely
+
+───────────────
+
+*📌 Links*
+
+Google (https://google.com)
+
+*Bold link* (https://example.com)
