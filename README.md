@@ -7,7 +7,7 @@ A client-side web utility to convert standard Markdown into WhatsApp's formattin
 
 **[➡️ Go to the Live Tool](https://drsound.github.io/markdown-to-whatsapp/)**
 
-![Screenshot of the app](./assets/screenshot.png)
+[![Screenshot of the app](./assets/screenshot.png)](https://drsound.github.io/markdown-to-whatsapp/)
 
 ---
 
