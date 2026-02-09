@@ -23,3 +23,19 @@ body {
     visibility: visible;
     opacity: 1;
 }
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(37, 211, 102, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
+    }
+}
+
+.copy-pulse {
+    animation: pulse-green 0.5s;
+}
