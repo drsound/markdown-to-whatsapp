@@ -794,7 +794,15 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function handleConversion() {
         try {
-            whatsappOutput.value = convertTextToWhatsapp(markdownInput.value);
+            const converted = convertTextToWhatsapp(markdownInput.value);
+            whatsappOutput.value = converted;
+
+            // Enable/disable copy button based on content
+            if (converted.trim()) {
+                copyButton.removeAttribute('disabled');
+            } else {
+                copyButton.setAttribute('disabled', 'true');
+            }
         } catch (error) {
             console.error('Conversion error:', error);
             whatsappOutput.value = 'Error during conversion. Check console for details.';
@@ -816,14 +824,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial conversion for any pre-filled text.
     handleConversion();
 
+    // Store original content for revert
+    const originalButtonContent = copyButton.innerHTML;
+    let isCopying = false;
+
     // Copy button handler.
     copyButton.addEventListener('click', () => {
-        if (!whatsappOutput.value) {
+        if (!whatsappOutput.value || isCopying) {
             return;
         }
 
+        isCopying = true;
+
         // Use the modern Clipboard API (secure context and user gesture required). No legacy fallback.
         navigator.clipboard.writeText(whatsappOutput.value).then(() => {
+            // Visual feedback on button
+            copyButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Copied!</span>
+            `;
+            copyButton.classList.add('copy-pulse');
+
+            // Store original inline style if any, though likely empty
+            const originalBg = copyButton.style.backgroundColor;
+            // Force a darker color for feedback
+            copyButton.style.backgroundColor = '#0b141a'; // Dark WhatsApp background color for contrast
+
+            // Revert button after 2 seconds
+            setTimeout(() => {
+                copyButton.innerHTML = originalButtonContent;
+                copyButton.classList.remove('copy-pulse');
+                copyButton.style.backgroundColor = originalBg;
+                isCopying = false;
+            }, 2000);
+
             // Show success toast.
             toast.classList.add('show');
             setTimeout(() => {
@@ -832,6 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(err => {
             // Log any errors to the console for debugging.
             console.error('Could not copy text to clipboard:', err);
+            isCopying = false;
         });
 
         // Deselect any selection after the copy attempt.
