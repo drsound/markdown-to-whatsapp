@@ -51,16 +51,17 @@ The emoji prefix can be turned off in the UI ("Emoji prefix in headings"), leavi
 * **Block content in items:** code blocks, blockquotes and nested lists are emitted on their own lines below the item
 
 ### Tables
-The converter supports **three strategies** for table rendering, selectable via the UI:
+The converter supports **three strategies** for table rendering, chosen in the UI for the
+whole document or for one table at a time:
 
-1. **ASCII Table**
-   Standard responsive ASCII art inside monospace blocks.
+1. **Table box**
+   A drawn table inside a monospace block, at its natural width.
    ```
-   +--------+-------------+
-   | Name   | Description |
-   +========+=============+
-   | Value  | Details     |
-   +--------+-------------+
+   ┌────────┬─────────────┐
+   │ Name   │ Description │
+   ╞════════╪═════════════╡
+   │ Value  │ Details     │
+   └────────┴─────────────┘
    ```
 
 2. **Bulleted List**
@@ -97,12 +98,12 @@ The converter supports **three strategies** for table rendering, selectable via 
 
 3. **Auto (Smart Switch)**
    Degrades progressively until the table fits the configurable limit (default **28 chars**, about what a WhatsApp bubble fits on a 360 px phone):
-   1. Full ASCII box, removing padding column by column (right-side first, then left-side).
+   1. Full box, removing padding column by column (right-side first, then left-side).
    2. **Compact borderless** style, again removing padding progressively:
       ```
-       Head1|Head2       |Head-N
-      ------+------------+------
-       A    |BBBBBBBBBBBB|C
+       Head1│Head2       │Head-N
+      ──────┼────────────┼──────
+       A    │BBBBBBBBBBBB│C
       ```
    3. **Wrapped compact** style: each column gets at least its longest word, the
       remaining width is shared proportionally and cells are word-wrapped — only
@@ -147,13 +148,19 @@ The converter supports **three strategies** for table rendering, selectable via 
 The interface follows the **operating system's light or dark theme**; the header toggle
 overrides it and that choice is remembered.
 Conversion options appear only when they apply — the table controls when the text contains a
-table, the heading-emoji toggle when it contains a heading, the border style in ASCII table
-mode — and are stored in `localStorage` along with the theme. Per-table choices are not
-stored: they belong to the text being converted.
+table, the heading-emoji toggle when it contains a heading, the width limit in Auto, the
+border style in ASCII table mode, the row separator outside List mode — and are stored in
+`localStorage` along with the theme. Per-table choices are not stored: they belong to the
+text being converted.
+
+Hovering a table in the preview reveals the same controls for that table alone, and a table
+with settings of its own is marked with a dot.
 
 ## Development
 
 ### Running Tests
+
+Node 18 or newer:
 
 ```bash
 cd tests
@@ -170,9 +177,19 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
 
 ### Project Structure
 
-* `docs/converter.js` - the converter itself: pure, DOM-free, options passed as a parameter
+* `docs/converter.js` - the converter itself: pure, DOM-free, options passed as a parameter.
+  It exposes `convertTextToWhatsapp(markdown, options)`, `convertToBlocks(markdown, options)`
+  — the same conversion with the top-level blocks kept apart and each one tagged with the
+  table it came from, which is what per-table options are built on — and the
+  `mdContainsTable` / `mdContainsHeading` queries the UI uses to show an option only when it
+  applies.
 * `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
+
+Options are `tableFormat` (`auto` | `ascii` | `always`), `tableThreshold`, `borderStyle`
+(`unicode` | `ascii`), `rowSeparator`, `headingEmojis`, and `tableOverrides` — an array
+indexed by the table's position in the document, each entry overriding any of the others for
+that table alone.
 
 The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in both
 `docs/index.html` (with an SRI hash) and `tests/package.json`, so the page and the tests
