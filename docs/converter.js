@@ -32,7 +32,7 @@ const HEADER_EMOJIS = {
 const DEFAULT_OPTIONS = {
     tableFormat: 'auto',
     tableThreshold: 26,
-    borderStyle: 'ascii',
+    borderStyle: 'unicode',
     headingEmojis: true
 };
 

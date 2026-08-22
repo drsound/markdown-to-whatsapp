@@ -22,10 +22,11 @@
     const themeLight = document.getElementById('theme-light');
     const themeDark = document.getElementById('theme-dark');
     const borderSeg = document.getElementById('border-seg');
+    const borderControls = document.getElementById('border-controls');
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
-    const options = { tableFormat: 'auto', tableThreshold: 26, borderStyle: 'ascii', headingEmojis: true };
+    const options = { tableFormat: 'auto', tableThreshold: 26, borderStyle: 'unicode', headingEmojis: true };
     let showRaw = false;
     let isCopying = false;
 
@@ -126,7 +127,8 @@
         shareLink.href = hasContent ? 'https://wa.me/?text=' + encodeURIComponent(converted) : '#';
         tableControls.hidden = !mdContainsTable(input.value);
         thresholdInput.hidden = options.tableFormat !== 'auto';
-        borderSeg.hidden = options.tableFormat === 'always';
+        // The border style is only worth choosing when every table is drawn as a box
+        borderControls.hidden = tableControls.hidden || options.tableFormat !== 'ascii';
         emojiToggle.hidden = !mdContainsHeading(input.value);
 
         if (hasContent) {

@@ -113,7 +113,7 @@ The converter supports **three strategies** for table rendering, selectable via 
 * Column alignment (`:---`, `:---:`, `---:`) is honoured in the box and compact styles.
 * Header-only tables render without an empty body or a doubled border.
 * `<br>` inside a cell becomes a space, and an escaped `\|` becomes `∣` so it cannot fake an extra column.
-* **Border style** is selectable in the UI: ASCII (`+---+`) or Unicode box drawing (`┌───┐`).
+* **Border style** defaults to Unicode box drawing (`┌───┐`); ASCII (`+---+`) can be chosen in the UI, where the control appears in ASCII table mode.
 
 ### Other Elements
 * **Links:** `[text](url)` → `text (url)`; autolinks, `<https://x>`, `[url](url)` and `<me@x.com>` render as the bare URL or address (no duplication, no `mailto:` leak)
@@ -139,8 +139,8 @@ The converter supports **three strategies** for table rendering, selectable via 
 
 The interface has a **light and a dark theme** (toggle in the header, remembered across visits).
 Conversion options appear only when they apply — the table controls when the text contains a
-table, the heading-emoji toggle when it contains a heading — and are stored in `localStorage`
-along with the theme.
+table, the heading-emoji toggle when it contains a heading, the border style in ASCII table
+mode — and are stored in `localStorage` along with the theme.
 
 ## Development
 

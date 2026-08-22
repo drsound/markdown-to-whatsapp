@@ -72,10 +72,12 @@
                             <input type="number" id="tableThreshold" value="26" min="1" max="200"
                                 aria-label="ASCII width limit in characters"
                                 title="Use ASCII if the table fits in this many characters">
+                        </div>
+                        <div class="table-controls" id="border-controls" hidden>
                             <span class="tc-label">Border</span>
                             <div class="seg border-seg" id="border-seg" title="Table border characters">
-                                <button type="button" data-border="ascii" class="active">+--+</button>
-                                <button type="button" data-border="unicode">┌──┐</button>
+                                <button type="button" data-border="unicode" class="active">┌──┐</button>
+                                <button type="button" data-border="ascii">+--+</button>
                             </div>
                         </div>
                         <button type="button" class="opt-toggle" id="emoji-toggle" hidden
