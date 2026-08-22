@@ -14,8 +14,6 @@
     const rawToggle = document.getElementById('raw-toggle');
     const previewTitle = document.getElementById('preview-title');
     const msgTime = document.getElementById('msg-time');
-    const cheatToggle = document.getElementById('cheat-toggle');
-    const cheatGrid = document.getElementById('cheat-grid');
     const dropOverlay = document.getElementById('drop-overlay');
     const editorCard = document.getElementById('editor-card');
     const loadExample = document.getElementById('load-example');
@@ -23,6 +21,8 @@
     const themeDark = document.getElementById('theme-dark');
     const borderSeg = document.getElementById('border-seg');
     const borderControls = document.getElementById('border-controls');
+    const thresholdLabel = document.getElementById('threshold-label');
+    const thresholdUnit = document.getElementById('threshold-unit');
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
@@ -49,17 +49,34 @@
     }
 
     // ---- Theme ----
-    function applyTheme(theme) {
+    const systemTheme = window.matchMedia('(prefers-color-scheme: light)');
+
+    function applyTheme(theme, remember) {
         document.body.classList.toggle('light', theme === 'light');
         themeLight.classList.toggle('active', theme === 'light');
         themeDark.classList.toggle('active', theme !== 'light');
-        try { localStorage.setItem('mdwa-theme', theme); } catch (e) { }
+        // Only an explicit click is remembered, so the page keeps following the
+        // operating system until the visitor overrides it
+        if (remember) {
+            try { localStorage.setItem('mdwa-theme', theme); } catch (e) { }
+        }
     }
-    themeLight.addEventListener('click', () => applyTheme('light'));
-    themeDark.addEventListener('click', () => applyTheme('dark'));
-    let savedTheme = null;
-    try { savedTheme = localStorage.getItem('mdwa-theme'); } catch (e) { }
-    applyTheme(savedTheme === 'light' ? 'light' : 'dark');
+
+    function storedTheme() {
+        try {
+            const theme = localStorage.getItem('mdwa-theme');
+            return theme === 'light' || theme === 'dark' ? theme : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    themeLight.addEventListener('click', () => applyTheme('light', true));
+    themeDark.addEventListener('click', () => applyTheme('dark', true));
+    systemTheme.addEventListener('change', () => {
+        if (!storedTheme()) applyTheme(systemTheme.matches ? 'light' : 'dark', false);
+    });
+    applyTheme(storedTheme() || (systemTheme.matches ? 'light' : 'dark'), false);
 
     // ---- WhatsApp-syntax → HTML preview ----
     function escapeHtml(s) {
@@ -126,7 +143,10 @@
         shareLink.classList.toggle('disabled', !hasContent);
         shareLink.href = hasContent ? 'https://wa.me/?text=' + encodeURIComponent(converted) : '#';
         tableControls.hidden = !mdContainsTable(input.value);
-        thresholdInput.hidden = options.tableFormat !== 'auto';
+        const showThreshold = options.tableFormat === 'auto';
+        thresholdInput.hidden = !showThreshold;
+        thresholdLabel.hidden = !showThreshold;
+        thresholdUnit.hidden = !showThreshold;
         // The border style is only worth choosing when every table is drawn as a box
         borderControls.hidden = tableControls.hidden || options.tableFormat !== 'ascii';
         emojiToggle.hidden = !mdContainsHeading(input.value);
@@ -174,12 +194,6 @@
         update();
     });
     rawToggle.addEventListener('click', () => { showRaw = !showRaw; render(); });
-
-    // ---- Cheat sheet ----
-    cheatToggle.addEventListener('click', () => {
-        cheatGrid.hidden = !cheatGrid.hidden;
-        cheatToggle.textContent = cheatGrid.hidden ? 'all →' : 'hide ↑';
-    });
 
     // ---- Example ----
     loadExample.addEventListener('click', () => {

@@ -42,20 +42,6 @@
                 </div>
                 <textarea id="markdown-input" placeholder="Paste the text to convert here..." spellcheck="false"></textarea>
                 <div class="drop-overlay" id="drop-overlay" hidden>Drop your .md file</div>
-                <div class="cheat-row">
-                    <span class="cheat-label">Cheat sheet</span>
-                    <span class="chip mono">**b**→*b*</span>
-                    <span class="chip mono">*i*→_i_</span>
-                    <span class="chip mono">~~s~~→~s~</span>
-                    <button id="cheat-toggle" type="button">all →</button>
-                </div>
-                <div class="cheat-grid" id="cheat-grid" hidden>
-                    <span># H1 → *📌 H1*</span><span>## H2 → *🟠 H2*</span>
-                    <span>### H3 → *🟡 H3*</span><span>***x*** → _*x*_</span>
-                    <span>[text](url) → text (url)</span><span>- [x] → ☑ · - [ ] → ☐</span>
-                    <span>nested list → * ◦ item</span><span>&gt; quote → &gt; quote</span>
-                    <span>--- → ───────────</span><span>\* escape → ∗ look-alike</span>
-                </div>
             </section>
 
             <section class="card">
@@ -69,9 +55,11 @@
                                 <button type="button" data-fmt="always">List</button>
                                 <button type="button" data-fmt="auto" class="active">Auto</button>
                             </div>
+                            <span class="tc-label thr-label" id="threshold-label">max</span>
                             <input type="number" id="tableThreshold" value="26" min="1" max="200"
-                                aria-label="ASCII width limit in characters"
-                                title="Use ASCII if the table fits in this many characters">
+                                aria-label="Maximum table width in characters"
+                                title="Use a table box if it fits in this many characters">
+                            <span class="tc-unit" id="threshold-unit">ch</span>
                         </div>
                         <div class="table-controls" id="border-controls" hidden>
                             <span class="tc-label">Border</span>
@@ -110,11 +98,6 @@
             </section>
         </main>
 
-        <footer class="footer">
-            Created by Alessandro Zarrilli ·
-            <a href="https://github.com/drsound/markdown-to-whatsapp">View on GitHub</a> ·
-            No data ever leaves your browser
-        </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@18.0.10/lib/marked.umd.js"

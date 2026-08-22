@@ -78,18 +78,6 @@ body {
     font-weight: 800; font-size: 16px; color: var(--accent); pointer-events: none;
 }
 
-/* ---- Cheat sheet ---- */
-.cheat-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
-.cheat-label { font-weight: 800; color: var(--chipText); }
-.chip { background: var(--chip); border-radius: 8px; padding: 4px 9px; }
-.mono { font-family: ui-monospace, Menlo, monospace; }
-#cheat-toggle { background: none; border: none; color: var(--accent); font: 700 12px 'Nunito Sans', sans-serif; cursor: pointer; padding: 0; }
-.cheat-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px;
-    background: var(--inset); border-radius: 16px; padding: 16px 18px;
-    font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--chipText); line-height: 1.9;
-}
-
 /* ---- Preview / chat ---- */
 .opt-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .table-controls { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
@@ -99,6 +87,9 @@ body {
 .opt-toggle { background: var(--chip); border: none; border-radius: 999px; color: var(--muted); font: 700 12px 'Nunito Sans', sans-serif; padding: 6px 12px; cursor: pointer; }
 .opt-toggle.active { background: var(--accent); color: var(--accentText); font-weight: 800; }
 .tc-label { font-weight: 700; }
+.thr-label, .tc-unit { font-weight: 700; }
+.tc-unit { margin-left: -2px; }
+
 #tableThreshold {
     width: 44px; background: var(--chip); border: none; border-radius: 8px;
     color: var(--text); text-align: center; padding: 5px 2px;

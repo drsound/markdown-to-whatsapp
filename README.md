@@ -137,7 +137,8 @@ The converter supports **three strategies** for table rendering, selectable via 
 3.  The right panel shows the message **in a WhatsApp bubble**, exactly as the recipient will see it; "view raw syntax" shows the text that will be copied.
 4.  **"Copy for WhatsApp"**, or **"Share on WhatsApp"** to open a chat with the message ready via `wa.me`.
 
-The interface has a **light and a dark theme** (toggle in the header, remembered across visits).
+The interface follows the **operating system's light or dark theme**; the header toggle
+overrides it and that choice is remembered.
 Conversion options appear only when they apply — the table controls when the text contains a
 table, the heading-emoji toggle when it contains a heading, the border style in ASCII table
 mode — and are stored in `localStorage` along with the theme.
