@@ -96,7 +96,7 @@ The converter supports **three strategies** for table rendering, selectable via 
    Key-Value detection supports **11 languages**: English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and Indonesian.
 
 3. **Auto (Smart Switch)**
-   Degrades progressively until the table fits the configurable limit (default **26 chars**):
+   Degrades progressively until the table fits the configurable limit (default **28 chars**, about what a WhatsApp bubble fits on a 360 px phone):
    1. Full ASCII box, removing padding column by column (right-side first, then left-side).
    2. **Compact borderless** style, again removing padding progressively:
       ```
@@ -105,7 +105,8 @@ The converter supports **three strategies** for table rendering, selectable via 
        A    |BBBBBBBBBBBB|C
       ```
    3. **Wrapped compact** style: each column gets at least its longest word, the
-      remaining width is shared proportionally and cells are word-wrapped.
+      remaining width is shared proportionally and cells are word-wrapped — only
+      while a row still fits two physical lines, past which the list reads better.
    4. **Bulleted List**, when not even the longest words fit.
 
 **Additional table behaviour**

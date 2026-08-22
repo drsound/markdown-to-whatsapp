@@ -26,7 +26,7 @@
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
-    const options = { tableFormat: 'auto', tableThreshold: 26, borderStyle: 'unicode', headingEmojis: true };
+    const options = { tableFormat: 'auto', tableThreshold: 28, borderStyle: 'unicode', headingEmojis: true };
     let showRaw = false;
     let isCopying = false;
 
@@ -171,7 +171,7 @@
 
     input.addEventListener('input', render);
     thresholdInput.addEventListener('input', () => {
-        options.tableThreshold = parseInt(thresholdInput.value, 10) || 26;
+        options.tableThreshold = parseInt(thresholdInput.value, 10) || 28;
         update();
     });
     document.querySelectorAll('.fmt-seg button').forEach(btn => {

@@ -29,9 +29,15 @@ const HEADER_EMOJIS = {
  * - borderStyle:    'ascii' | 'unicode' box-drawing characters
  * - headingEmojis:  prepend a level emoji to headings
  */
+/**
+ * How many physical lines one logical row may take in the wrapped layout before
+ * the list format wins on readability.
+ */
+const MAX_WRAPPED_LINES_PER_ROW = 2;
+
 const DEFAULT_OPTIONS = {
     tableFormat: 'auto',
-    tableThreshold: 26,
+    tableThreshold: 28,
     borderStyle: 'unicode',
     headingEmojis: true
 };
@@ -1158,8 +1164,15 @@ function renderTableWrapped(header, rows, natural, align, opts) {
     };
 
     const headerLines = wrapRow(header);
+    const bodyRows = rows.map(wrapRow);
+
+    // Wrapping is only worth it while the result still reads as a table: past two
+    // physical lines per row the grid is less legible than the bulleted list
+    const tallest = Math.max(headerLines.length, ...bodyRows.map(lines => lines.length), 0);
+    if (tallest > MAX_WRAPPED_LINES_PER_ROW) return null;
+
     const bodyLines = [];
-    for (const row of rows) bodyLines.push(...wrapRow(row));
+    for (const lines of bodyRows) bodyLines.push(...lines);
 
     const chars = BORDERS[opts.borderStyle] || BORDERS.ascii;
     const lines = [];
