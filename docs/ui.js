@@ -118,6 +118,15 @@
                 if (/^>\s?/.test(line)) { quote.push(line.replace(/^(>\s?)+/, '')); return; }
                 flushQuote();
                 if (line === '') { out.push('<div class="pv-gap"></div>'); return; }
+                // WhatsApp turns `* `/`- ` and `1. ` line prefixes into real list
+                // markers, so the preview must not show the raw character
+                const item = /^([*-]|\d{1,9}\.)\s+(.*)$/.exec(line);
+                if (item) {
+                    const marker = item[1] === '*' || item[1] === '-' ? '•' : item[1];
+                    out.push('<div class="pv-item"><span class="pv-marker">' + marker + '</span>'
+                        + '<span>' + inlineFmt(escapeHtml(item[2])) + '</span></div>');
+                    return;
+                }
                 out.push('<div>' + inlineFmt(escapeHtml(line)) + '</div>');
             });
             flushQuote();

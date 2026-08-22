@@ -126,6 +126,9 @@ body {
     background: rgba(0, 0, 0, 0.22); border-radius: 8px; padding: 8px 10px; margin: 6px 0;
     white-space: pre; overflow-x: auto;
 }
+.bubble .pv-item { display: flex; gap: 6px; }
+.bubble .pv-marker { flex: none; min-width: 12px; }
+
 .bubble .pv-quote { border-left: 3px solid var(--accent); padding-left: 8px; color: var(--quote); margin: 4px 0; }
 .bubble .pv-gap { height: 0.7em; }
 .bubble .pv-raw { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
