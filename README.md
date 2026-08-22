@@ -133,12 +133,14 @@ The converter supports **three strategies** for table rendering, selectable via 
 ## How to Use
 
 1.  **Open the web page:** [https://drsound.github.io/markdown-to-whatsapp/](https://drsound.github.io/markdown-to-whatsapp/)
-2.  **Paste your text** into the left panel.
-3.  Switch between the **Text** and **Preview** tabs to check how WhatsApp will render the message.
-4.  **Copy the result** from the right panel using the "Copy" button.
-5.  **Paste** the formatted text into your WhatsApp chat.
+2.  **Paste, type or drop a `.md` file** into the left panel. "Try an example" fills it with a sample message.
+3.  The right panel shows the message **in a WhatsApp bubble**, exactly as the recipient will see it; "view raw syntax" shows the text that will be copied.
+4.  **"Copy for WhatsApp"**, or **"Share on WhatsApp"** to open a chat with the message ready via `wa.me`.
 
-All conversion options (table format, threshold, border style, heading emojis) are stored in `localStorage` and restored on the next visit.
+The interface has a **light and a dark theme** (toggle in the header, remembered across visits).
+Conversion options appear only when they apply — the table controls when the text contains a
+table, the heading-emoji toggle when it contains a heading — and are stored in `localStorage`
+along with the theme.
 
 ## Development
 
@@ -160,7 +162,7 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
 ### Project Structure
 
 * `docs/converter.js` - the converter itself: pure, DOM-free, options passed as a parameter
-* `docs/app.js` - page wiring: reads the options, drives the converter, renders the preview
+* `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
 
 The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in both

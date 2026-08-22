@@ -1282,6 +1282,53 @@ function renderTableAsList(token) {
 }
 
 // =================================================================================================
+// DOCUMENT QUERIES (used by the UI to show contextual options)
+// =================================================================================================
+
+/**
+ * Whether any token in the tree matches the predicate.
+ * @param {Array} tokens
+ * @param {(token: Object) => boolean} predicate
+ * @returns {boolean}
+ */
+function someToken(tokens, predicate) {
+    for (const token of tokens) {
+        if (predicate(token)) return true;
+        if (Array.isArray(token.tokens) && someToken(token.tokens, predicate)) return true;
+        if (Array.isArray(token.items) && someToken(token.items, predicate)) return true;
+    }
+    return false;
+}
+
+/**
+ * Whether the Markdown contains a table, at any nesting level.
+ * @param {string} markdownText
+ * @returns {boolean}
+ */
+function mdContainsTable(markdownText) {
+    if (!markdownText || !markdownText.trim()) return false;
+    try {
+        return someToken(marked.lexer(markdownText), token => token.type === 'table');
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Whether the Markdown contains a heading, at any nesting level.
+ * @param {string} markdownText
+ * @returns {boolean}
+ */
+function mdContainsHeading(markdownText) {
+    if (!markdownText || !markdownText.trim()) return false;
+    try {
+        return someToken(marked.lexer(markdownText), token => token.type === 'heading');
+    } catch {
+        return false;
+    }
+}
+
+// =================================================================================================
 // EXPORTS
 // =================================================================================================
 
@@ -1289,6 +1336,8 @@ function renderTableAsList(token) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         convertTextToWhatsapp,
+        mdContainsTable,
+        mdContainsHeading,
         DEFAULT_OPTIONS,
         displayWidth,
         decodeEntities,

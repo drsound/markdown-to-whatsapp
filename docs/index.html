@@ -7,127 +7,119 @@
     <title>Markdown to WhatsApp Converter</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-
     <div class="page">
-        <header class="page-header">
-            <h1>Markdown to WhatsApp Converter</h1>
-            <p>Paste your Markdown text and get the WhatsApp-formatted version.</p>
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="brand-name">Markdown → WhatsApp</div>
+                    <div class="brand-sub">Private · runs entirely in your browser</div>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="seg theme-seg">
+                    <button id="theme-light" type="button">Light</button>
+                    <button id="theme-dark" type="button">Dark</button>
+                </div>
+                <a class="gh-link" href="https://github.com/drsound/markdown-to-whatsapp">GitHub</a>
+            </div>
         </header>
 
-        <main class="panes">
-            <!-- Input Area -->
-            <div id="markdown-container" class="card">
+        <main class="grid">
+            <section class="card" id="editor-card">
                 <div class="card-head">
-                    <label for="markdown-input" class="card-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Markdown Input
-                    </label>
+                    <span class="card-title">Your Markdown</span>
+                    <span class="hint-chip">paste · type · drop a .md file</span>
                 </div>
-                <textarea id="markdown-input" placeholder="Paste the text to convert here..."></textarea>
-            </div>
+                <textarea id="markdown-input" placeholder="Paste the text to convert here..." spellcheck="false"></textarea>
+                <div class="drop-overlay" id="drop-overlay" hidden>Drop your .md file</div>
+                <div class="cheat-row">
+                    <span class="cheat-label">Cheat sheet</span>
+                    <span class="chip mono">**b**→*b*</span>
+                    <span class="chip mono">*i*→_i_</span>
+                    <span class="chip mono">~~s~~→~s~</span>
+                    <button id="cheat-toggle" type="button">all →</button>
+                </div>
+                <div class="cheat-grid" id="cheat-grid" hidden>
+                    <span># H1 → *📌 H1*</span><span>## H2 → *🟠 H2*</span>
+                    <span>### H3 → *🟡 H3*</span><span>***x*** → _*x*_</span>
+                    <span>[text](url) → text (url)</span><span>- [x] → ☑ · - [ ] → ☐</span>
+                    <span>nested list → * ◦ item</span><span>&gt; quote → &gt; quote</span>
+                    <span>--- → ───────────</span><span>\* escape → ∗ look-alike</span>
+                </div>
+            </section>
 
-            <!-- Output Area -->
-            <div id="whatsapp-container" class="card card--output">
+            <section class="card">
                 <div class="card-head">
-                    <label for="whatsapp-output" class="card-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                        </svg>
-                        WhatsApp Output
-                    </label>
-                    <button id="copy-button" class="button" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon--small" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                        </svg>
-                        <span>Copy</span>
-                    </button>
-                </div>
-
-                <!-- Text / Preview tabs -->
-                <div class="tabs" role="tablist" aria-label="Output view">
-                    <button type="button" class="tab" id="tab-text" role="tab" aria-controls="whatsapp-output" aria-selected="true">Text</button>
-                    <button type="button" class="tab" id="tab-preview" role="tab" aria-controls="whatsapp-preview" aria-selected="false">Preview</button>
-                </div>
-
-                <textarea id="whatsapp-output" role="tabpanel" aria-labelledby="tab-text"
-                    placeholder="Converted text will appear here..."></textarea>
-                <div id="whatsapp-preview" class="preview" role="tabpanel" aria-labelledby="tab-preview" hidden>
-                    <div class="bubble"></div>
-                </div>
-
-                <!-- Conversion Options -->
-                <div class="options">
-                    <div class="options-group">
-                        <span class="options-title" id="table-format-label">Table Conversion Format:</span>
-                        <div class="options-list" role="radiogroup" aria-labelledby="table-format-label">
-                            <label class="option">
-                                <input type="radio" name="tableFormat" value="ascii">
-                                <span>ASCII Table</span>
-                            </label>
-
-                            <label class="option">
-                                <input type="radio" name="tableFormat" value="always">
-                                <span>Bulleted List</span>
-                            </label>
-
-                            <div>
-                                <label class="option">
-                                    <input type="radio" name="tableFormat" value="auto" checked>
-                                    <span>Auto</span>
-                                </label>
-                                <div class="option-hint">
-                                    <span>ASCII if fits</span>
-                                    <input type="number" id="tableThreshold" value="26" min="1" max="200" aria-label="Table threshold in characters">
-                                    <span>chars, otherwise list</span>
-                                </div>
+                    <span class="card-title" id="preview-title">Preview</span>
+                    <div class="opt-controls">
+                        <div class="table-controls" id="table-controls" hidden>
+                            <span class="tc-label">Table</span>
+                            <div class="seg fmt-seg">
+                                <button type="button" data-fmt="ascii">ASCII</button>
+                                <button type="button" data-fmt="always">List</button>
+                                <button type="button" data-fmt="auto" class="active">Auto</button>
+                            </div>
+                            <input type="number" id="tableThreshold" value="26" min="1" max="200"
+                                aria-label="ASCII width limit in characters"
+                                title="Use ASCII if the table fits in this many characters">
+                            <span class="tc-label">Border</span>
+                            <div class="seg border-seg" id="border-seg" title="Table border characters">
+                                <button type="button" data-border="ascii" class="active">+--+</button>
+                                <button type="button" data-border="unicode">┌──┐</button>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="options-group">
-                        <span class="options-title" id="border-style-label">Table Border Style:</span>
-                        <div class="options-list options-list--inline" role="radiogroup" aria-labelledby="border-style-label">
-                            <label class="option">
-                                <input type="radio" name="borderStyle" value="ascii" checked>
-                                <span>ASCII</span>
-                            </label>
-                            <label class="option">
-                                <input type="radio" name="borderStyle" value="unicode">
-                                <span>Unicode</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="options-group">
-                        <label class="option">
-                            <input type="checkbox" id="headingEmojis" checked>
-                            <span>Emoji prefix in headings</span>
-                        </label>
+                        <button type="button" class="opt-toggle" id="emoji-toggle" hidden
+                            title="Prefix headings with a level emoji">📌 headings</button>
                     </div>
                 </div>
-            </div>
+                <div class="chat" id="chat">
+                    <div class="chat-empty" id="chat-empty">
+                        <div class="bubble-in">Your converted message will appear here, exactly as recipients will see it.</div>
+                        <button id="load-example" type="button">Try an example</button>
+                    </div>
+                    <div class="chat-msg" id="chat-msg" hidden>
+                        <div class="day-chip">TODAY</div>
+                        <div class="bubble">
+                            <div id="bubble-content"></div>
+                            <div class="meta"><span id="msg-time"></span> <span class="ticks">✓✓</span></div>
+                        </div>
+                        <button id="raw-toggle" type="button">view raw syntax</button>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button id="copy-button" type="button" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                        <span id="copy-label">Copy for WhatsApp</span>
+                    </button>
+                    <a id="share-link" class="share" target="_blank" rel="noopener">Share on WhatsApp</a>
+                </div>
+            </section>
         </main>
 
-        <footer class="page-footer">
-            <p>Created by Alessandro Zarrilli. <a href="https://github.com/drsound/markdown-to-whatsapp">View on GitHub</a></p>
+        <footer class="footer">
+            Created by Alessandro Zarrilli ·
+            <a href="https://github.com/drsound/markdown-to-whatsapp">View on GitHub</a> ·
+            No data ever leaves your browser
         </footer>
     </div>
-
-    <div id="toast" class="toast" role="alert" aria-live="assertive">Text copied to clipboard!</div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@18.0.10/lib/marked.umd.js"
         integrity="sha384-JD1I1oSYdjlw8850MjNFhpmRtgBZ97SjJYg9IJUE1RxR3DgG8oo4R43qLGMkd99t"
         crossorigin="anonymous"></script>
-    <script src="converter.js" defer></script>
-    <script src="app.js" defer></script>
-
+    <script src="converter.js"></script>
+    <script src="ui.js" defer></script>
 </body>
 
 </html>
