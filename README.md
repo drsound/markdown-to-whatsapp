@@ -118,7 +118,9 @@ The converter supports **three strategies** for table rendering, selectable via 
 * **Row separator** (default off) draws a rule between body rows, in every boxed and compact style.
 * Every option can be set **per table**: hovering a table in the preview reveals its own
   controls, which start from the document default and override it for that table only. A
-  table nested inside a list item or a blockquote always follows the document default.
+  table carrying its own settings keeps a small dot, since the controls at the top of the
+  panel deliberately leave it alone — its "default" button hands it back to them. A table
+  nested inside a list item or a blockquote always follows the document default.
 
 ### Other Elements
 * **Links:** `[text](url)` → `text (url)`; autolinks, `<https://x>`, `[url](url)` and `<me@x.com>` render as the bare URL or address (no duplication, no `mailto:` leak)

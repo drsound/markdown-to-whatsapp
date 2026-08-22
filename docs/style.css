@@ -136,6 +136,14 @@ body {
     background: var(--card); box-shadow: var(--shadow);
     opacity: 0; transition: opacity 0.12s;
 }
+/* An overridden table keeps a small mark, so the header controls skipping it
+   never looks like a bug; hovering swaps it for the full strip */
+.bubble .pv-badge {
+    position: absolute; top: -4px; right: 0; z-index: 1;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); transition: opacity 0.12s;
+}
+.bubble .pv-table:hover .pv-badge { opacity: 0; }
 .bubble .pv-table:hover .pv-table-controls,
 .bubble .pv-table-controls:focus-within { opacity: 1; }
 .bubble .pv-table-controls .seg { padding: 2px; }

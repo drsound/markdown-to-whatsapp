@@ -178,8 +178,15 @@
             const gap = i > 0 ? '<div class="pv-gap"></div>' : '';
             const body = renderChunks(block.text);
             if (block.tableIndex === null) return gap + body;
-            return gap + '<div class="pv-table" data-table="' + block.tableIndex + '">'
-                + tableControlsHTML(block.tableIndex) + body + '</div>';
+            // A table with settings of its own says so without being hovered:
+            // otherwise the header controls look broken when they skip it
+            const own = tableOverrides[block.tableIndex];
+            const overridden = own && Object.keys(own).length ? ' is-overridden' : '';
+            const badge = overridden
+                ? '<span class="pv-badge" title="This table has its own settings"></span>'
+                : '';
+            return gap + '<div class="pv-table' + overridden + '" data-table="' + block.tableIndex + '">'
+                + badge + tableControlsHTML(block.tableIndex) + body + '</div>';
         }).join('');
     }
 
