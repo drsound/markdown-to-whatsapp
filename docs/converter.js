@@ -592,6 +592,9 @@ function renderInlineHtml(raw) {
  */
 const OWN_MARKERS = { strong: '*', em: '_', del: '~', codespan: '`' };
 
+// A marker only applies when it borders a non-alphanumeric character
+const ALPHANUMERIC = /[\p{L}\p{N}]/u;
+
 /**
  * First code point of a string ('' when empty). Indexing would return a lone
  * surrogate for supplementary-plane characters, which no `\p{L}` test matches.
@@ -626,15 +629,19 @@ function followingChars(tokens, outerAfter) {
     const chars = new Array(tokens.length + 1);
     chars[tokens.length] = outerAfter;
     for (let i = tokens.length - 1; i >= 0; i--) {
-        // A neighbour that carries its own marker starts with that marker, which
-        // is a valid boundary: `**foo***bar*` is two spans, not one word
+        // A neighbour keeping its own marker starts with that marker, which is a
+        // valid boundary (`**foo***bar*` is two spans, not one word). It only
+        // keeps it when its own right side allows it, hence the reverse pass:
+        // in `**foo**~~bar~~y` the `y` strips the del markers, so the strong
+        // token really does border `b` and has to drop its markers too.
         const marker = OWN_MARKERS[tokens[i].type];
-        if (marker) {
+        const next = chars[i + 1];
+        if (marker && !ALPHANUMERIC.test(next)) {
             chars[i] = marker;
             continue;
         }
         const text = renderPlainText([tokens[i]]);
-        chars[i] = text ? firstCodePoint(text) : chars[i + 1];
+        chars[i] = text ? firstCodePoint(text) : next;
     }
     return chars;
 }
@@ -652,8 +659,7 @@ function followingChars(tokens, outerAfter) {
 function isPartialWord(before, after) {
     // Both arguments are a single code point, so no anchors are needed - and
     // `/[\p{L}\p{N}]$/u` misses supplementary letters on V8 anyway
-    const alphanumeric = /[\p{L}\p{N}]/u;
-    return alphanumeric.test(before) || alphanumeric.test(after);
+    return ALPHANUMERIC.test(before) || ALPHANUMERIC.test(after);
 }
 
 /**

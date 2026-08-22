@@ -7,3 +7,11 @@
 ~~struck~~**bold**
 
 **bold**`code`
+
+**foo**~~bar~~y
+
+**foo**`bar`y
+
+~~foo~~**bar**y
+
+x**foo**~~bar~~

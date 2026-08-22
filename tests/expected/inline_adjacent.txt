@@ -7,3 +7,11 @@ _foo_*bold*
 ~struck~*bold*
 
 *bold*`code`
+
+foobary
+
+foobary
+
+foobary
+
+xfoobar
