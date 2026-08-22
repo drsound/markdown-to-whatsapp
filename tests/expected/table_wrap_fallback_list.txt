@@ -1,0 +1,4 @@
+* *Infrastructure:* Proxmox
+* ◦ _Storage backend:_ ZFS with replication
+* *Infrastructure:* ESXi
+* ◦ _Storage backend:_ VMFS datastores configuration

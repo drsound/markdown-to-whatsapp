@@ -1,0 +1,5 @@
+Search (https://example.test/?a=1&b=2)
+
+https://example.test/?a=1&b=2
+
+Docs & guides (https://example.test/docs)

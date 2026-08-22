@@ -1,0 +1,10 @@
+This is *bold* and _italic_ and ~struck~.
+
+Inline `code` too.
+
+Line one
+line two.
+
+Comment  gone.
+
+Unknown tag stripped.

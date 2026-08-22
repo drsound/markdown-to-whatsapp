@@ -1,0 +1,9 @@
+© 2026 — Acme™
+
+Decimal A and hex B entities.
+
+Comparison: 5 < 10 && 10 > 5
+
+Quotes: “hello” …
+
+Code with entities: `a < b`

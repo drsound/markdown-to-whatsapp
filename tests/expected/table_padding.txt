@@ -68,6 +68,8 @@
 
 ───────────────
 
-* *Head1:* A
-* ◦ _Head2:_ BBBBBBBBBBBB
-* ◦ _Head-N:_ C
+```
+ Head1|Head2       |Head-N
+------+------------+------
+ A    |BBBBBBBBBBBB|C
+```
