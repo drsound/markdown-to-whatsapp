@@ -1,0 +1,9 @@
+*foo*_bar_
+
+*foo*_bar_
+
+_foo_*bold*
+
+~struck~*bold*
+
+*bold*`code`

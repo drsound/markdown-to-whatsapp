@@ -588,6 +588,11 @@ function renderInlineHtml(raw) {
 }
 
 /**
+ * Marker a token renders itself with, when it renders one.
+ */
+const OWN_MARKERS = { strong: '*', em: '_', del: '~', codespan: '`' };
+
+/**
  * First code point of a string ('' when empty). Indexing would return a lone
  * surrogate for supplementary-plane characters, which no `\p{L}` test matches.
  * @param {string} text
@@ -621,6 +626,13 @@ function followingChars(tokens, outerAfter) {
     const chars = new Array(tokens.length + 1);
     chars[tokens.length] = outerAfter;
     for (let i = tokens.length - 1; i >= 0; i--) {
+        // A neighbour that carries its own marker starts with that marker, which
+        // is a valid boundary: `**foo***bar*` is two spans, not one word
+        const marker = OWN_MARKERS[tokens[i].type];
+        if (marker) {
+            chars[i] = marker;
+            continue;
+        }
         const text = renderPlainText([tokens[i]]);
         chars[i] = text ? firstCodePoint(text) : chars[i + 1];
     }
