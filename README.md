@@ -115,6 +115,10 @@ The converter supports **three strategies** for table rendering, selectable via 
 * Header-only tables render without an empty body or a doubled border.
 * `<br>` inside a cell becomes a space, and an escaped `\|` becomes `∣` so it cannot fake an extra column.
 * **Border style** defaults to Unicode box drawing (`┌───┐`); ASCII (`+---+`) can be chosen in the UI, where the control appears in ASCII table mode.
+* **Row separator** (default off) draws a rule between body rows, in every boxed and compact style.
+* Every option can be set **per table**: hovering a table in the preview reveals its own
+  controls, which start from the document default and override it for that table only. A
+  table nested inside a list item or a blockquote always follows the document default.
 
 ### Other Elements
 * **Links:** `[text](url)` → `text (url)`; autolinks, `<https://x>`, `[url](url)` and `<me@x.com>` render as the bare URL or address (no duplication, no `mailto:` leak)
@@ -142,7 +146,8 @@ The interface follows the **operating system's light or dark theme**; the header
 overrides it and that choice is remembered.
 Conversion options appear only when they apply — the table controls when the text contains a
 table, the heading-emoji toggle when it contains a heading, the border style in ASCII table
-mode — and are stored in `localStorage` along with the theme.
+mode — and are stored in `localStorage` along with the theme. Per-table choices are not
+stored: they belong to the text being converted.
 
 ## Development
 

@@ -39,6 +39,7 @@ const DEFAULT_OPTIONS = {
     tableFormat: 'auto',
     tableThreshold: 28,
     borderStyle: 'unicode',
+    rowSeparator: false,
     headingEmojis: true
 };
 
@@ -51,12 +52,14 @@ const BORDERS = {
         tl: '+', tm: '+', tr: '+',
         ml: '+', mm: '+', mr: '+',
         bl: '+', bm: '+', br: '+',
+        rl: '+', rm: '+', rr: '+',
         h: '-', hh: '=', v: '|', cm: '+'
     },
     unicode: {
         tl: '┌', tm: '┬', tr: '┐',
         ml: '╞', mm: '╪', mr: '╡',
         bl: '└', bm: '┴', br: '┘',
+        rl: '├', rm: '┼', rr: '┤',
         h: '─', hh: '═', v: '│', cm: '┼'
     }
 };
@@ -285,7 +288,21 @@ function normalizeOptions(options) {
     const threshold = parseInt(merged.tableThreshold, 10);
     merged.tableThreshold = Number.isFinite(threshold) && threshold > 0 ? threshold : DEFAULT_OPTIONS.tableThreshold;
     if (!BORDERS[merged.borderStyle]) merged.borderStyle = DEFAULT_OPTIONS.borderStyle;
+    merged.rowSeparator = Boolean(merged.rowSeparator);
+    merged.tableOverrides = Array.isArray(merged.tableOverrides) ? merged.tableOverrides : [];
     return merged;
+}
+
+/**
+ * The options one table renders with: its own override wins per key, everything
+ * else inherits the document's settings.
+ * @param {Object} opts - Normalized document options
+ * @param {number} index - Position of the table in the document
+ * @returns {Object}
+ */
+function tableOptionsFor(opts, index) {
+    const override = opts.tableOverrides[index];
+    return override ? normalizeOptions(Object.assign({}, opts, override)) : opts;
 }
 
 // =================================================================================================
@@ -316,13 +333,55 @@ function normalizeOptions(options) {
  * @returns {string} The converted WhatsApp-compatible text.
  */
 function convertTextToWhatsapp(markdownText, options) {
+    return convertToBlocks(markdownText, options).text;
+}
+
+/**
+ * Convert Markdown and keep the top-level blocks apart, so a caller can tell
+ * which piece of the output came from which table. Blocks joined with a blank
+ * line reproduce `text` exactly.
+ *
+ * Only TOP-LEVEL tables get an index and their own options: a table nested in a
+ * list item or a blockquote renders with the document's settings, because the
+ * preview has nowhere to hang a control on it.
+ *
+ * @param {string} markdownText - The Markdown input.
+ * @param {Object} [options] - See DEFAULT_OPTIONS, plus `tableOverrides`.
+ * @returns {{text: string, blocks: Array<{text: string, tableIndex: number|null}>}}
+ */
+function convertToBlocks(markdownText, options) {
     if (!markdownText || !markdownText.trim()) {
-        return '';
+        return { text: '', blocks: [] };
     }
 
     const opts = normalizeOptions(options);
     const tokens = marked.lexer(markdownText);
-    return renderTokens(tokens, opts).trim();
+    const blocks = [];
+    let tableIndex = 0;
+
+    for (const token of tokens) {
+        let rendered;
+        let index = null;
+
+        if (token.type === 'table') {
+            index = tableIndex++;
+            rendered = renderTable(token, tableOptionsFor(opts, index));
+        } else {
+            rendered = renderToken(token, opts);
+        }
+
+        if (rendered) blocks.push({ text: rendered, tableIndex: index });
+    }
+
+    // Same trim as a plain conversion, applied to the ends of the outer blocks
+    if (blocks.length) {
+        blocks[0].text = blocks[0].text.replace(/^\s+/, '');
+        const last = blocks[blocks.length - 1];
+        last.text = last.text.replace(/\s+$/, '');
+    }
+
+    const kept = blocks.filter(block => block.text);
+    return { text: kept.map(block => block.text).join('\n\n'), blocks: kept };
 }
 
 /**
@@ -1023,14 +1082,16 @@ function renderTable(token, opts) {
         rightPadding: header.map(() => true)
     };
 
+    const groups = rows.map(row => [row]);
+
     if (opts.tableFormat === 'ascii') {
-        return fenceTable(renderTableGrid(header, rows, natural, align, fullLayout, opts.borderStyle));
+        return fenceTable(renderTableGrid([header], groups, natural, align, fullLayout, opts));
     }
 
     // 'auto' mode: progressively degrade until the table fits the threshold
     for (const layout of generateLayouts(header.length)) {
         if (layoutWidth(natural, layout) <= opts.tableThreshold) {
-            return fenceTable(renderTableGrid(header, rows, natural, align, layout, opts.borderStyle));
+            return fenceTable(renderTableGrid([header], groups, natural, align, layout, opts));
         }
     }
 
@@ -1053,16 +1114,19 @@ function fenceTable(lines) {
 
 /**
  * Render the table grid for the given column widths and layout.
- * @param {string[]} header
- * @param {string[][]} rows - Physical rows (already wrapped, if any)
+ * Rows come in GROUPS of physical lines: an unwrapped row is a group of one,
+ * a wrapped row a group of as many lines as it took. The optional separator is
+ * drawn between groups, never inside one.
+ * @param {string[][]} headerGroup - Physical lines of the header row
+ * @param {string[][][]} bodyGroups - One group of physical lines per body row
  * @param {number[]} colWidths
  * @param {Array} align
  * @param {Object} layout - { border, leftPadding, rightPadding }
- * @param {string} borderStyle - 'ascii' | 'unicode'
+ * @param {Object} opts - Conversion options (borderStyle, rowSeparator)
  * @returns {string[]} lines
  */
-function renderTableGrid(header, rows, colWidths, align, layout, borderStyle) {
-    const chars = BORDERS[borderStyle] || BORDERS.ascii;
+function renderTableGrid(headerGroup, bodyGroups, colWidths, align, layout, opts) {
+    const chars = BORDERS[opts.borderStyle] || BORDERS.ascii;
 
     const renderRow = (cells) => {
         const parts = colWidths.map((width, i) => {
@@ -1083,20 +1147,24 @@ function renderTableGrid(header, rows, colWidths, align, layout, borderStyle) {
         return left + segments.join(mid) + right;
     };
 
+    const full = layout.border === 'full';
+    const rowRule = full
+        ? rule(chars.rl, chars.rm, chars.rr, chars.h)
+        : rule('', chars.cm, '', chars.h);
+
     const lines = [];
 
-    if (layout.border === 'full') {
-        lines.push(rule(chars.tl, chars.tm, chars.tr, chars.h));
-        lines.push(renderRow(header));
-        lines.push(rule(chars.ml, chars.mm, chars.mr, chars.hh));
-        for (const row of rows) lines.push(renderRow(row));
-        // A header-only table needs no body and no closing border
-        if (rows.length) lines.push(rule(chars.bl, chars.bm, chars.br, chars.h));
-    } else {
-        lines.push(renderRow(header));
-        lines.push(rule('', chars.cm, '', chars.h));
-        for (const row of rows) lines.push(renderRow(row));
-    }
+    if (full) lines.push(rule(chars.tl, chars.tm, chars.tr, chars.h));
+    for (const line of headerGroup) lines.push(renderRow(line));
+    lines.push(full ? rule(chars.ml, chars.mm, chars.mr, chars.hh) : rowRule);
+
+    bodyGroups.forEach((group, i) => {
+        if (opts.rowSeparator && i > 0) lines.push(rowRule);
+        for (const line of group) lines.push(renderRow(line));
+    });
+
+    // A header-only table needs no body and no closing border
+    if (full && bodyGroups.length) lines.push(rule(chars.bl, chars.bm, chars.br, chars.h));
 
     return lines;
 }
@@ -1171,22 +1239,14 @@ function renderTableWrapped(header, rows, natural, align, opts) {
     const tallest = Math.max(headerLines.length, ...bodyRows.map(lines => lines.length), 0);
     if (tallest > MAX_WRAPPED_LINES_PER_ROW) return null;
 
-    const bodyLines = [];
-    for (const lines of bodyRows) bodyLines.push(...lines);
+    // The last column's right padding would only be invisible trailing space
+    const layout = {
+        border: 'compact',
+        leftPadding: header.map(() => true),
+        rightPadding: header.map((cell, i) => i < colCount - 1)
+    };
 
-    const chars = BORDERS[opts.borderStyle] || BORDERS.ascii;
-    const lines = [];
-    const renderRow = (cells) => widths
-        .map((width, i) => ' ' + padCell(cells[i] || '', width, align[i]) + ' ')
-        .join(chars.v)
-        .replace(/\s+$/, '');
-
-    for (const line of headerLines) lines.push(renderRow(line));
-    // The last column has no visible right padding, so its rule segment is shorter
-    lines.push(widths.map((width, i) => chars.h.repeat(width + (i < colCount - 1 ? 2 : 1))).join(chars.cm));
-    for (const line of bodyLines) lines.push(renderRow(line));
-
-    return fenceTable(lines);
+    return fenceTable(renderTableGrid(headerLines, bodyRows, widths, align, layout, opts));
 }
 
 /**
@@ -1349,6 +1409,7 @@ function mdContainsHeading(markdownText) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         convertTextToWhatsapp,
+        convertToBlocks,
         mdContainsTable,
         mdContainsHeading,
         DEFAULT_OPTIONS,

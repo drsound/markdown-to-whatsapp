@@ -23,10 +23,15 @@
     const borderControls = document.getElementById('border-controls');
     const thresholdLabel = document.getElementById('threshold-label');
     const thresholdUnit = document.getElementById('threshold-unit');
+    const rowsControls = document.getElementById('rows-controls');
+    const rowsToggle = document.getElementById('rows-toggle');
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
-    const options = { tableFormat: 'auto', tableThreshold: 28, borderStyle: 'unicode', headingEmojis: true };
+    const options = { tableFormat: 'auto', tableThreshold: 28, borderStyle: 'unicode', rowSeparator: false, headingEmojis: true };
+    // Per-table overrides, keyed by the table's position in the document. Not
+    // persisted: they belong to the text being converted, not to the user.
+    const tableOverrides = [];
     let showRaw = false;
     let isCopying = false;
 
@@ -38,6 +43,7 @@
 
         thresholdInput.value = String(options.tableThreshold);
         emojiToggle.classList.toggle('active', options.headingEmojis);
+        rowsToggle.classList.toggle('active', options.rowSeparator);
         document.querySelectorAll('.fmt-seg button').forEach(b =>
             b.classList.toggle('active', b.dataset.fmt === options.tableFormat));
         borderSeg.querySelectorAll('button').forEach(b =>
@@ -99,9 +105,9 @@
         out = applyMarker(out, '~', 's');
         return out;
     }
-    function buildPreviewHTML(converted) {
+    function renderChunks(text) {
         const out = [];
-        const chunks = converted.split('```');
+        const chunks = text.split('```');
         chunks.forEach((chunk, ci) => {
             if (ci % 2 === 1) {
                 out.push('<div class="pv-code">' + escapeHtml(chunk.replace(/^\n/, '').replace(/\n$/, '')) + '</div>');
@@ -122,7 +128,7 @@
                 // markers, so the preview must not show the raw character
                 const item = /^([*-]|\d{1,9}\.)\s+(.*)$/.exec(line);
                 if (item) {
-                    const marker = item[1] === '*' || item[1] === '-' ? '•' : item[1];
+                    const marker = item[1] === '*' || item[1] === '-' ? '\u2022' : item[1];
                     out.push('<div class="pv-item"><span class="pv-marker">' + marker + '</span>'
                         + '<span>' + inlineFmt(escapeHtml(item[2])) + '</span></div>');
                     return;
@@ -134,16 +140,65 @@
         return out.join('');
     }
 
+    function seg(name, index, current, entries) {
+        return '<div class="seg">' + entries.map(([value, label]) =>
+            '<button type="button" data-table="' + index + '" data-opt="' + name + '" data-value="' + value + '"'
+            + (value === current ? ' class="active"' : '') + '>' + label + '</button>').join('') + '</div>';
+    }
+
+    // The strip shows the options this table actually renders with, whether they
+    // come from the document defaults or from its own override.
+    function tableControlsHTML(index) {
+        const own = tableOverrides[index] || {};
+        const eff = Object.assign({}, options, own);
+        const parts = [seg('tableFormat', index, eff.tableFormat, [['ascii', 'ASCII'], ['always', 'List'], ['auto', 'Auto']])];
+
+        if (eff.tableFormat === 'auto') {
+            parts.push('<input type="number" class="pv-thr" min="1" max="200" value="' + eff.tableThreshold + '"'
+                + ' data-table="' + index + '" data-opt="tableThreshold" data-pv-focus="thr-' + index + '"'
+                + ' aria-label="Maximum table width in characters">');
+        }
+        if (eff.tableFormat === 'ascii') {
+            parts.push(seg('borderStyle', index, eff.borderStyle, [['unicode', '\u250c\u2500\u2500\u2510'], ['ascii', '+--+']]));
+        }
+        if (eff.tableFormat !== 'always') {
+            parts.push('<button type="button" class="opt-toggle' + (eff.rowSeparator ? ' active' : '') + '"'
+                + ' data-table="' + index + '" data-opt="rowSeparator" data-value="toggle"'
+                + ' title="Draw a rule between table rows">rows</button>');
+        }
+        if (Object.keys(own).length) {
+            parts.push('<button type="button" class="pv-reset" data-table="' + index + '" data-opt="reset"'
+                + ' title="Follow the document default again">default</button>');
+        }
+        return '<div class="pv-table-controls">' + parts.join('') + '</div>';
+    }
+
+    function buildPreviewHTML(blocks) {
+        return blocks.map((block, i) => {
+            const gap = i > 0 ? '<div class="pv-gap"></div>' : '';
+            const body = renderChunks(block.text);
+            if (block.tableIndex === null) return gap + body;
+            return gap + '<div class="pv-table" data-table="' + block.tableIndex + '">'
+                + tableControlsHTML(block.tableIndex) + body + '</div>';
+        }).join('');
+    }
+
     // ---- Conversion + render ----
     let lastConverted = '';
     function render() {
         let converted = '';
+        let blocks = [];
         try {
-            converted = convertTextToWhatsapp(input.value, options);
+            const result = convertToBlocks(input.value, Object.assign({}, options, { tableOverrides }));
+            converted = result.text;
+            blocks = result.blocks;
         } catch (error) {
             console.error('Conversion error:', error);
         }
         lastConverted = converted;
+        // A control the user is typing in survives the re-render
+        const active = document.activeElement;
+        const focusKey = active && active.dataset ? active.dataset.pvFocus : null;
         const hasContent = !!converted.trim();
 
         chatEmpty.hidden = hasContent;
@@ -158,13 +213,18 @@
         thresholdUnit.hidden = !showThreshold;
         // The border style is only worth choosing when every table is drawn as a box
         borderControls.hidden = tableControls.hidden || options.tableFormat !== 'ascii';
+        rowsControls.hidden = tableControls.hidden || options.tableFormat === 'always';
         emojiToggle.hidden = !mdContainsHeading(input.value);
 
         if (hasContent) {
             if (showRaw) {
                 bubbleContent.innerHTML = '<div class="pv-raw">' + escapeHtml(converted) + '</div>';
             } else {
-                bubbleContent.innerHTML = buildPreviewHTML(converted);
+                bubbleContent.innerHTML = buildPreviewHTML(blocks);
+                if (focusKey) {
+                    const restored = bubbleContent.querySelector('[data-pv-focus="' + focusKey + '"]');
+                    if (restored) restored.focus();
+                }
             }
             const now = new Date();
             msgTime.textContent = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
@@ -197,6 +257,42 @@
             update();
         });
     });
+    rowsToggle.addEventListener('click', () => {
+        options.rowSeparator = !options.rowSeparator;
+        rowsToggle.classList.toggle('active', options.rowSeparator);
+        update();
+    });
+
+    // ---- Per-table overrides ----
+    function setOverride(index, patch) {
+        tableOverrides[index] = Object.assign({}, tableOverrides[index] || {}, patch);
+        render();
+    }
+
+    bubbleContent.addEventListener('click', (event) => {
+        const control = event.target.closest('[data-opt]');
+        if (!control) return;
+        const index = Number(control.dataset.table);
+        const opt = control.dataset.opt;
+
+        if (opt === 'reset') {
+            delete tableOverrides[index];
+            render();
+        } else if (opt === 'rowSeparator') {
+            const own = tableOverrides[index] || {};
+            const current = 'rowSeparator' in own ? own.rowSeparator : options.rowSeparator;
+            setOverride(index, { rowSeparator: !current });
+        } else if (control.dataset.value) {
+            setOverride(index, { [opt]: control.dataset.value });
+        }
+    });
+
+    bubbleContent.addEventListener('input', (event) => {
+        const field = event.target.closest('input[data-opt="tableThreshold"]');
+        if (!field) return;
+        setOverride(Number(field.dataset.table), { tableThreshold: parseInt(field.value, 10) || options.tableThreshold });
+    });
+
     emojiToggle.addEventListener('click', () => {
         options.headingEmojis = !options.headingEmojis;
         emojiToggle.classList.toggle('active', options.headingEmojis);

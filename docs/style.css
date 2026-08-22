@@ -126,6 +126,32 @@ body {
     background: rgba(0, 0, 0, 0.22); border-radius: 8px; padding: 8px 10px; margin: 6px 0;
     white-space: pre; overflow-x: auto;
 }
+/* Per-table controls: revealed on hover so the bubble stays a faithful preview */
+.bubble .pv-table { position: relative; }
+.bubble .pv-table-controls {
+    position: absolute; top: -10px; right: -4px; z-index: 2;
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+    flex-wrap: wrap; max-width: 100%;
+    padding: 3px 4px; border-radius: 999px;
+    background: var(--card); box-shadow: var(--shadow);
+    opacity: 0; transition: opacity 0.12s;
+}
+.bubble .pv-table:hover .pv-table-controls,
+.bubble .pv-table-controls:focus-within { opacity: 1; }
+.bubble .pv-table-controls .seg { padding: 2px; }
+.bubble .pv-table-controls .seg button { font-size: 11px; padding: 3px 8px; }
+.bubble .pv-table-controls .opt-toggle { font-size: 11px; padding: 3px 8px; }
+.bubble .pv-thr {
+    width: 38px; padding: 3px 2px; border: none; border-radius: 8px;
+    background: var(--chip); color: var(--text); text-align: center;
+    font: 700 11px 'Nunito Sans', sans-serif; outline: none;
+}
+.bubble .pv-reset {
+    background: none; border: none; cursor: pointer; padding: 3px 6px;
+    color: var(--muted); font: 700 11px 'Nunito Sans', sans-serif;
+}
+.bubble .pv-reset:hover { color: var(--text); }
+
 .bubble .pv-item { display: flex; gap: 6px; }
 .bubble .pv-marker { flex: none; min-width: 12px; }
 
