@@ -1,6 +1,7 @@
 {
   "name": "markdown-to-whatsapp",
   "version": "1.0.1",
+  "mcpName": "io.github.drsound/markdown-to-whatsapp",
   "description": "Convert Markdown into WhatsApp formatting — tables drawn to fit the phone's monospace width. Library, CLI and MCP server.",
   "keywords": [
     "whatsapp",

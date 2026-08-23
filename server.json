@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.drsound/markdown-to-whatsapp",
+  "description": "Convert Markdown into WhatsApp formatting: tables drawn to fit the phone's monospace width.",
+  "repository": {
+    "url": "https://github.com/drsound/markdown-to-whatsapp",
+    "source": "github"
+  },
+  "version": "1.0.2",
+  "websiteUrl": "https://drsound.github.io/markdown-to-whatsapp/",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "markdown-to-whatsapp",
+      "version": "1.0.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "isRequired": true,
+          "description": "Run the MCP server over stdio"
+        }
+      ]
+    }
+  ]
+}
