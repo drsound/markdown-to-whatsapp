@@ -1,4 +1,4 @@
-| Economy | Value |
-|---|---|
-| GDP | 2.1 T |
-| Debt | 2.9 T |
+| Species | Lion | Tiger |
+|---|---|---|
+| Weight | 190 kg | 220 kg |
+| Range | Africa | Asia |

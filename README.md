@@ -80,8 +80,8 @@ table at a time:
 A list can group the cells in three ways. The converter **guesses** from the headers and the
 bold cells, and the guess can be overridden per table (Layout: Auto · Rows · Columns · Pairs):
 
-* **Pairs** — 2 columns with generic headers ("Attribute/Value", "Key/Value"…) or a bold
-  first column: the headers add nothing, each row is a `key: value` line.
+* **Pairs** — 2 columns, whatever the headers: each row is a `key: value` line. Spelling the
+  headers out on every row reads worse than `Italy: Rome` in nearly every table.
   ```
   * *CPU:* Intel Xeon
   * *RAM:* 64 GB
@@ -110,9 +110,10 @@ bold cells, and the guess can be overridden per table (Layout: Auto · Rows · C
   * ◦ _Stock:_ 100
   ```
 
-Headers are matched word by word ("Economy" does not count as "nom") in **11 languages**:
-English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and
-Indonesian. Pairs need exactly two columns; asked for on a wider table, it reads as Rows.
+The property words are matched word by word ("Species" does not count as "spec") in **11
+languages**: English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi,
+Bengali, and Indonesian. Pairs need exactly two columns; asked for on a wider table, it reads as
+Rows.
 
 **How the box degrades**
 

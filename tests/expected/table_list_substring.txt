@@ -1,4 +1,6 @@
-* *Economy:* GDP
-* ◦ _Value:_ 2.1 T
-* *Economy:* Debt
-* ◦ _Value:_ 2.9 T
+* *Species:* Weight
+* ◦ _Lion:_ 190 kg
+* ◦ _Tiger:_ 220 kg
+* *Species:* Range
+* ◦ _Lion:_ Africa
+* ◦ _Tiger:_ Asia

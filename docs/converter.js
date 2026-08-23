@@ -109,23 +109,10 @@ const HTML_INLINE_MARKERS = {
     code: '`'
 };
 
-// Generic header keywords for Key-Value table detection (by language)
-const KV_HEADERS_EN = ['attribute', 'value', 'key', 'parameter', 'property', 'field', 'description', 'setting', 'option', 'name', 'detail', 'spec', 'specification', 'metric', 'measure', 'item'];
-const KV_HEADERS_IT = ['attributo', 'valore', 'chiave', 'parametro', 'proprietà', 'campo', 'descrizione', 'impostazione', 'opzione', 'nome', 'dettaglio', 'specifica', 'metrica', 'misura', 'elemento'];
-const KV_HEADERS_ES = ['atributo', 'valor', 'clave', 'parámetro', 'propiedad', 'campo', 'descripción', 'configuración', 'opción', 'nombre', 'detalle', 'especificación', 'métrica', 'medida', 'elemento'];
-const KV_HEADERS_FR = ['attribut', 'valeur', 'clé', 'paramètre', 'propriété', 'champ', 'description', 'réglage', 'option', 'nom', 'détail', 'spécification', 'métrique', 'mesure', 'élément'];
-const KV_HEADERS_PT = ['atributo', 'valor', 'chave', 'parâmetro', 'propriedade', 'campo', 'descrição', 'configuração', 'opção', 'nome', 'detalhe', 'especificação', 'métrica', 'medida', 'elemento'];
-const KV_HEADERS_DE = ['attribut', 'wert', 'schlüssel', 'parameter', 'eigenschaft', 'feld', 'beschreibung', 'einstellung', 'option', 'name', 'detail', 'spezifikation', 'metrik', 'messung', 'element'];
-const KV_HEADERS_RU = ['атрибут', 'значение', 'ключ', 'параметр', 'свойство', 'поле', 'описание', 'настройка', 'опция', 'имя', 'деталь', 'спецификация', 'метрика', 'измерение', 'элемент'];
-const KV_HEADERS_AR = ['سمة', 'قيمة', 'مفتاح', 'معامل', 'خاصية', 'حقل', 'وصف', 'إعداد', 'خيار', 'اسم', 'تفصيل', 'مواصفة', 'مقياس', 'قياس', 'عنصر'];
-const KV_HEADERS_HI = ['विशेषता', 'मान', 'कुंजी', 'पैरामीटर', 'संपत्ति', 'क्षेत्र', 'विवरण', 'सेटिंग', 'विकल्प', 'नाम', 'विस्तार', 'विनिर्देश', 'मीट्रिक', 'माप', 'तत्व'];
-const KV_HEADERS_BN = ['বৈশিষ্ট্য', 'মান', 'চাবি', 'প্যারামিটার', 'সম্পত্তি', 'ক্ষেত্র', 'বিবরণ', 'সেটিং', 'বিকল্প', 'নাম', 'বিস্তারিত', 'স্পেসিফিকেশন', 'মেট্রিক', 'পরিমাপ', 'উপাদান'];
-const KV_HEADERS_ID = ['atribut', 'nilai', 'kunci', 'parameter', 'properti', 'bidang', 'deskripsi', 'pengaturan', 'opsi', 'nama', 'detail', 'spesifikasi', 'metrik', 'ukuran', 'elemen'];
-
 // First-column headers of a comparison matrix (`| Feature | Proxmox | ESXi |`):
 // the things being compared sit in the columns, and the rows are their properties.
-// Deliberately narrower than the generic set: `Name | Price | Stock` is a list of
-// named things, one per row, and must not be read as a matrix.
+// Deliberately narrow: `Name | Price | Stock` is a list of named things, one per
+// row, and must not be read as a matrix. Eleven languages.
 const MATRIX_HEADERS = [
     'feature', 'attribute', 'parameter', 'property', 'spec', 'specification', 'criteria', 'criterion', 'characteristic', 'metric', 'aspect',
     'caratteristica', 'caratteristiche', 'funzionalità', 'attributo', 'parametro', 'proprietà', 'specifica', 'criterio', 'metrica', 'aspetto',
@@ -140,11 +127,6 @@ const MATRIX_HEADERS = [
     'fitur', 'atribut', 'parameter', 'properti', 'spesifikasi', 'kriteria', 'metrik', 'aspek'
 ];
 
-const KEY_VALUE_HEADERS = [
-    ...KV_HEADERS_EN, ...KV_HEADERS_IT, ...KV_HEADERS_ES, ...KV_HEADERS_FR,
-    ...KV_HEADERS_PT, ...KV_HEADERS_DE, ...KV_HEADERS_RU, ...KV_HEADERS_AR,
-    ...KV_HEADERS_HI, ...KV_HEADERS_BN, ...KV_HEADERS_ID, ...MATRIX_HEADERS
-];
 
 // =================================================================================================
 // TEXT UTILITIES
@@ -1398,9 +1380,10 @@ function boldFirstColumn(token) {
 /**
  * Guess how a table reads best as a list.
  *
- * - `pairs`: two columns whose headers are generic (`Attribute | Value`), or
- *   whose first column is bold — the headers add nothing, each row is a
- *   `key: value` line.
+ * - `pairs`: two columns, whatever the headers say — each row is a
+ *   `key: value` line. Spelling the headers out on every row (`Country: Italy`
+ *   / `Capital: Rome`) reads worse than `Italy: Rome` in nearly every table,
+ *   and the text around the table usually says what the columns were.
  * - `columns`: three or more columns where the first header is empty or names
  *   a property (`Feature`, `Spec`…), or the first column is bold: a comparison
  *   matrix, where the things compared are the columns and the rows their
@@ -1413,15 +1396,11 @@ function boldFirstColumn(token) {
  */
 function detectTableType(token) {
     const headers = token.header.map(cell => renderPlainText(cell.tokens).trim());
-    const bold = boldFirstColumn(token);
 
-    if (headers.length === 2) {
-        const bothGeneric = headers.every(h => headerMatches(h, KEY_VALUE_HEADERS));
-        if (bothGeneric || bold) return 'pairs';
-    }
+    if (headers.length === 2) return 'pairs';
 
     if (headers.length >= 3) {
-        if (headers[0] === '' || headerMatches(headers[0], MATRIX_HEADERS) || bold) return 'columns';
+        if (headers[0] === '' || headerMatches(headers[0], MATRIX_HEADERS) || boldFirstColumn(token)) return 'columns';
     }
 
     return 'rows';
