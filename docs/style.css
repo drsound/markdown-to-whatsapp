@@ -279,7 +279,9 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
     background: var(--chip); color: var(--text); text-decoration: none; white-space: nowrap;
     font: 800 14px 'Nunito Sans', sans-serif; padding: 14px; border-radius: 16px;
 }
-.share.disabled { opacity: 0.45; pointer-events: none; color: var(--muted); }
+/* Disabled with a reason keeps its tooltip, so it has to keep taking the pointer */
+.share.disabled { opacity: 0.45; color: var(--muted); cursor: not-allowed; }
+.share.disabled:not([title]), .share.disabled[title=""] { pointer-events: none; }
 
 /* ---- Footer ---- */
 

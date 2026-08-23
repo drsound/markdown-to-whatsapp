@@ -28,6 +28,21 @@
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
+    // No phone fits fewer than ten or more than eighty monospace characters on
+    // a line; anything outside is a typo, and the field says so by clamping
+    const WIDTH_MIN = 10;
+    const WIDTH_MAX = 80;
+    // A message travels to WhatsApp inside the wa.me URL. Browsers start
+    // truncating or refusing URLs at a few thousand characters, and a
+    // truncated message would arrive silently cut: past this many characters
+    // of URL the link steps aside and leaves the job to Copy
+    const SHARE_URL_MAX = 8000;
+
+    function clampWidth(value) {
+        const width = parseInt(value, 10);
+        if (!Number.isFinite(width)) return DEFAULT_OPTIONS.monoWidth;
+        return Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, width));
+    }
     // The document options the bar edits. `listLayout` is deliberately not
     // among them: which way a table reads as a list is a property of that
     // table, so it only exists as a per-table override.
@@ -61,8 +76,7 @@
             }
             if (FORMAT_ALIASES[stored.tableFormat]) options.tableFormat = FORMAT_ALIASES[stored.tableFormat];
         }
-        const width = parseInt(options.monoWidth, 10);
-        options.monoWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_OPTIONS.monoWidth;
+        options.monoWidth = clampWidth(options.monoWidth);
         if (options.tableFormat !== 'list') options.tableFormat = 'auto';
         options.listLayout = DEFAULT_OPTIONS.listLayout;
 
@@ -287,8 +301,11 @@
         chatEmpty.hidden = hasContent;
         chatMsg.hidden = !hasContent;
         copyButton.disabled = !hasContent;
-        shareLink.classList.toggle('disabled', !hasContent);
-        shareLink.href = hasContent ? 'https://wa.me/?text=' + encodeURIComponent(converted) : '#';
+        const shareUrl = 'https://wa.me/?text=' + encodeURIComponent(converted);
+        const tooLong = shareUrl.length > SHARE_URL_MAX;
+        shareLink.classList.toggle('disabled', !hasContent || tooLong);
+        shareLink.href = hasContent && !tooLong ? shareUrl : '#';
+        shareLink.title = tooLong ? 'Too long to hand over as a link: copy it and paste it in WhatsApp' : '';
         // Sections come and go with the content; within a section, a control
         // that the current settings make pointless is dimmed in place
         const hasTable = mdContainsTable(input.value);
@@ -430,7 +447,14 @@
         // An empty field is mid-edit, not a request to go back to the default:
         // reacting would flash every monospace block at the default width
         if (widthInput.value === '') return;
-        options.monoWidth = parseInt(widthInput.value, 10) || DEFAULT_OPTIONS.monoWidth;
+        options.monoWidth = clampWidth(widthInput.value);
+        update();
+    });
+    // Only once the edit is over does the field show the value it was clamped
+    // to: rewriting it mid-typing would fight the keystrokes
+    widthInput.addEventListener('change', () => {
+        options.monoWidth = clampWidth(widthInput.value);
+        widthInput.value = String(options.monoWidth);
         update();
     });
     document.querySelectorAll('.fmt-seg button').forEach(btn => {
@@ -509,6 +533,11 @@
         dropOverlay.hidden = true;
         const file = e.dataTransfer.files && e.dataTransfer.files[0];
         if (file) file.text().then(t => { input.value = t; render(); });
+    });
+
+    // A disabled Share still takes the pointer, for its tooltip: the click goes nowhere
+    shareLink.addEventListener('click', (event) => {
+        if (shareLink.classList.contains('disabled')) event.preventDefault();
     });
 
     // ---- Copy ----

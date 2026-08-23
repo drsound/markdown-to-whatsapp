@@ -53,7 +53,8 @@ The emoji prefix can be turned off in the UI (Headings · Emoji), leaving plain 
 ### Bubble width
 A WhatsApp bubble fits a fixed number of monospace characters on one line — about **26** on a
 360 px phone, which is the default. Measure yours by sending yourself a code block and counting
-where it breaks, then set **Width** in the bar to that (the `?` next to it says the same).
+where it breaks, then set **Width** in the bar to that (the `?` next to it says the same). The
+field accepts 10 to 80: no phone is outside that range.
 
 The number is a property of the phone, not of any one table, so it governs everything monospace:
 tables degrade to stay under it, and the preview draws every code block exactly that wide, wrapping
@@ -197,7 +198,7 @@ mid-word, and a chat bubble has no horizontal scroll — so the preview reproduc
 1.  **Open the web page:** [https://drsound.github.io/markdown-to-whatsapp/](https://drsound.github.io/markdown-to-whatsapp/)
 2.  **Paste, type or drop a `.md` file** into the left panel. "Try an example" fills it with a sample message.
 3.  The right panel shows the message **in a WhatsApp bubble**, exactly as the recipient will see it; "view raw syntax" shows the text that will be copied. The two panels **scroll together** — whichever is under the pointer leads — and while you type the preview follows the cursor.
-4.  **"Copy for WhatsApp"**, or **"Share on WhatsApp"** to open a chat with the message ready via `wa.me`.
+4.  **"Copy for WhatsApp"**, or **"Share on WhatsApp"** to open a chat with the message ready via `wa.me`. A very long message does not fit in a link — browsers cut URLs past a few thousand characters — so Share steps aside and says to copy instead.
 
 The interface follows the **operating system's light or dark theme**; the header toggle
 overrides it and that choice is remembered.
