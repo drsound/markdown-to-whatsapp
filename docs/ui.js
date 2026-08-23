@@ -44,6 +44,7 @@
         thresholdInput.value = String(options.tableThreshold);
         emojiToggle.classList.toggle('active', options.headingEmojis);
         rowsToggle.classList.toggle('active', options.rowSeparator);
+        rowsToggle.setAttribute('aria-pressed', String(options.rowSeparator));
         document.querySelectorAll('.fmt-seg button').forEach(b =>
             b.classList.toggle('active', b.dataset.fmt === options.tableFormat));
         borderSeg.querySelectorAll('button').forEach(b =>
@@ -140,37 +141,53 @@
         return out.join('');
     }
 
-    function seg(name, index, current, entries) {
-        return '<div class="seg">' + entries.map(([value, label]) =>
+    // Each option sits on its own labelled line, the same grammar as the header bar
+    function row(label, control) {
+        return '<span class="opt-label">' + label + '</span><div class="pv-tc-cell">' + control + '</div>';
+    }
+
+    function seg(name, index, current, entries, extraClass) {
+        return '<div class="seg' + (extraClass ? ' ' + extraClass : '') + '">' + entries.map(([value, label]) =>
             '<button type="button" data-table="' + index + '" data-opt="' + name + '" data-value="' + value + '"'
             + (value === current ? ' class="active"' : '') + '>' + label + '</button>').join('') + '</div>';
     }
 
-    // The strip shows the options this table actually renders with, whether they
+    // The panel shows the options this table actually renders with, whether they
     // come from the document defaults or from its own override.
     function tableControlsHTML(index) {
         const own = tableOverrides[index] || {};
         const eff = Object.assign({}, options, own);
-        const parts = [seg('tableFormat', index, eff.tableFormat, [['ascii', 'ASCII'], ['always', 'List'], ['auto', 'Auto']])];
+        const custom = Object.keys(own).length > 0;
+
+        const head = '<div class="pv-tc-head"><span class="pv-tc-title">This table</span></div>';
+        let reset = '';
+
+        const rows = [row('Style', seg('tableFormat', index, eff.tableFormat, [['ascii', 'ASCII'], ['always', 'List'], ['auto', 'Auto']]))];
 
         if (eff.tableFormat === 'auto') {
-            parts.push('<input type="number" class="pv-thr" min="1" max="200" value="' + eff.tableThreshold + '"'
+            rows.push(row('Max', '<div class="pv-numfield">'
+                + '<input type="number" class="pv-thr" min="1" max="200" value="' + eff.tableThreshold + '"'
                 + ' data-table="' + index + '" data-opt="tableThreshold" data-pv-focus="thr-' + index + '"'
-                + ' aria-label="Maximum table width in characters">');
-        }
-        if (eff.tableFormat === 'ascii') {
-            parts.push(seg('borderStyle', index, eff.borderStyle, [['unicode', '\u250c\u2500\u2500\u2510'], ['ascii', '+--+']]));
+                + ' aria-label="Maximum table width in characters"><span>ch</span></div>'));
         }
         if (eff.tableFormat !== 'always') {
-            parts.push('<button type="button" class="opt-toggle' + (eff.rowSeparator ? ' active' : '') + '"'
+            rows.push(row('Border', seg('borderStyle', index, eff.borderStyle, [['unicode', 'Unicode'], ['ascii', 'Plain']], 'border-seg')));
+        }
+        if (eff.tableFormat !== 'always') {
+            rows.push(row('Separator', '<button type="button" class="check' + (eff.rowSeparator ? ' active' : '') + '"'
                 + ' data-table="' + index + '" data-opt="rowSeparator" data-value="toggle"'
-                + ' title="Draw a rule between table rows">rows</button>');
+                + ' aria-pressed="' + (eff.rowSeparator ? 'true' : 'false') + '"'
+                + ' aria-label="Draw a rule between table rows"'
+                + ' title="Draw a rule between table rows"><span class="check-box"></span></button>'));
         }
-        if (Object.keys(own).length) {
-            parts.push('<button type="button" class="pv-reset" data-table="' + index + '" data-opt="reset"'
-                + ' title="Follow the document default again">default</button>');
+
+        if (custom) {
+            reset = '<button type="button" class="pv-reset" data-table="' + index + '" data-opt="reset"'
+                + ' title="Follow the document default again">reset to default</button>';
         }
-        return '<div class="pv-table-controls">' + parts.join('') + '</div>';
+
+        return '<div class="pv-table-controls"><div class="pv-tc-body">' + head
+            + '<div class="pv-tc-grid">' + rows.join('') + '</div></div>' + reset + '</div>';
     }
 
     function buildPreviewHTML(blocks) {
@@ -178,15 +195,12 @@
             const gap = i > 0 ? '<div class="pv-gap"></div>' : '';
             const body = renderChunks(block.text);
             if (block.tableIndex === null) return gap + body;
-            // A table with settings of its own says so without being hovered:
-            // otherwise the header controls look broken when they skip it
+            // A table with settings of its own carries an accent stripe even when
+            // unhovered: otherwise the header controls look broken when they skip it
             const own = tableOverrides[block.tableIndex];
             const overridden = own && Object.keys(own).length ? ' is-overridden' : '';
-            const badge = overridden
-                ? '<span class="pv-badge" title="This table has its own settings"></span>'
-                : '';
             return gap + '<div class="pv-table' + overridden + '" data-table="' + block.tableIndex + '">'
-                + badge + tableControlsHTML(block.tableIndex) + body + '</div>';
+                + tableControlsHTML(block.tableIndex) + body + '</div>';
         }).join('');
     }
 
@@ -218,8 +232,8 @@
         thresholdInput.hidden = !showThreshold;
         thresholdLabel.hidden = !showThreshold;
         thresholdUnit.hidden = !showThreshold;
-        // The border style is only worth choosing when every table is drawn as a box
-        borderControls.hidden = tableControls.hidden || options.tableFormat !== 'ascii';
+        // Auto can still draw a box, so the border choice matters there too
+        borderControls.hidden = tableControls.hidden || options.tableFormat === 'always';
         rowsControls.hidden = tableControls.hidden || options.tableFormat === 'always';
         emojiToggle.hidden = !mdContainsHeading(input.value);
 
@@ -228,6 +242,7 @@
                 bubbleContent.innerHTML = '<div class="pv-raw">' + escapeHtml(converted) + '</div>';
             } else {
                 bubbleContent.innerHTML = buildPreviewHTML(blocks);
+                placePanels();
                 if (focusKey) {
                     const restored = bubbleContent.querySelector('[data-pv-focus="' + focusKey + '"]');
                     if (restored) restored.focus();
@@ -267,6 +282,7 @@
     rowsToggle.addEventListener('click', () => {
         options.rowSeparator = !options.rowSeparator;
         rowsToggle.classList.toggle('active', options.rowSeparator);
+        rowsToggle.setAttribute('aria-pressed', String(options.rowSeparator));
         update();
     });
 
@@ -275,6 +291,25 @@
         tableOverrides[index] = Object.assign({}, tableOverrides[index] || {}, patch);
         render();
     }
+
+    // The panel opens upward by default, but #chat scrolls and would clip a panel
+    // hanging above a table near the top: flip it below when there isn't room.
+    // Decided on every render too, since a click inside the panel rebuilds the node.
+    function placePanels(scope) {
+        const chatTop = document.getElementById('chat').getBoundingClientRect().top;
+        const tables = scope ? [scope] : bubbleContent.querySelectorAll('.pv-table');
+        tables.forEach((table) => {
+            const panel = table.querySelector('.pv-table-controls');
+            if (!panel) return;
+            const room = table.getBoundingClientRect().top - chatTop;
+            table.classList.toggle('pv-flip', room < panel.offsetHeight + 16);
+        });
+    }
+
+    bubbleContent.addEventListener('pointerover', (event) => {
+        const table = event.target.closest('.pv-table');
+        if (table) placePanels(table);
+    });
 
     bubbleContent.addEventListener('click', (event) => {
         const control = event.target.closest('[data-opt]');

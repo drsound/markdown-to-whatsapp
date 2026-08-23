@@ -53,34 +53,37 @@
             <section class="card">
                 <div class="card-head">
                     <span class="card-title" id="preview-title">Preview</span>
-                    <div class="opt-controls">
-                        <div class="table-controls" id="table-controls" hidden>
-                            <span class="tc-label">Table</span>
-                            <div class="seg fmt-seg">
-                                <button type="button" data-fmt="ascii">ASCII</button>
-                                <button type="button" data-fmt="always">List</button>
-                                <button type="button" data-fmt="auto" class="active">Auto</button>
-                            </div>
-                            <span class="tc-label thr-label" id="threshold-label">max</span>
+                    <button type="button" class="opt-toggle head-opt" id="emoji-toggle" hidden
+                        title="Prefix each heading with an emoji marking its level">📌 heading icons</button>
+                </div>
+                <div class="optbar" id="table-controls" hidden>
+                    <span class="optbar-title">Tables</span>
+                    <div class="optbar-group">
+                        <span class="opt-label">Style</span>
+                        <div class="seg fmt-seg">
+                            <button type="button" data-fmt="ascii">ASCII</button>
+                            <button type="button" data-fmt="always">List</button>
+                            <button type="button" data-fmt="auto" class="active">Auto</button>
+                        </div>
+                        <div class="numfield" title="Use a table box if it fits in this many characters">
+                            <span class="numfield-label" id="threshold-label">max</span>
                             <input type="number" id="tableThreshold" value="28" min="1" max="200"
-                                aria-label="Maximum table width in characters"
-                                title="Use a table box if it fits in this many characters">
-                            <span class="tc-unit" id="threshold-unit">ch</span>
+                                aria-label="Maximum table width in characters">
+                            <span class="numfield-unit" id="threshold-unit">ch</span>
                         </div>
-                        <div class="table-controls" id="border-controls" hidden>
-                            <span class="tc-label">Border</span>
-                            <div class="seg border-seg" id="border-seg" title="Table border characters">
-                                <button type="button" data-border="unicode" class="active">┌──┐</button>
-                                <button type="button" data-border="ascii">+--+</button>
-                            </div>
+                    </div>
+                    <div class="optbar-group" id="border-controls" hidden>
+                        <span class="opt-label">Border</span>
+                        <div class="seg border-seg" id="border-seg" title="Table border characters">
+                            <button type="button" data-border="unicode" class="active">Unicode</button>
+                            <button type="button" data-border="ascii">Plain</button>
                         </div>
-                        <div class="table-controls" id="rows-controls" hidden>
-                            <span class="tc-label">Rows</span>
-                            <button type="button" class="opt-toggle" id="rows-toggle"
-                                title="Draw a rule between table rows">separator</button>
-                        </div>
-                        <button type="button" class="opt-toggle" id="emoji-toggle" hidden
-                            title="Prefix headings with a level emoji">📌 headings</button>
+                    </div>
+                    <div class="optbar-group" id="rows-controls" hidden>
+                        <span class="opt-label">Separator</span>
+                        <button type="button" class="check" id="rows-toggle" aria-pressed="false"
+                            aria-label="Draw a rule between table rows"
+                            title="Draw a rule between table rows"><span class="check-box"></span></button>
                     </div>
                 </div>
                 <div class="chat" id="chat">
