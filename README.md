@@ -10,7 +10,7 @@ Convert standard Markdown into WhatsApp's formatting syntax — as a web page, a
 
 `npm i markdown-to-whatsapp` · `npx markdown-to-whatsapp mcp`
 
-[![Screenshot of the app](./assets/screenshot.png)](https://drsound.github.io/markdown-to-whatsapp/)
+[![Screenshot of the app](./docs/assets/screenshot.png)](https://drsound.github.io/markdown-to-whatsapp/)
 
 ---
 
