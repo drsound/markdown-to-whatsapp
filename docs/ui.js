@@ -252,22 +252,27 @@
             + body + '</div>' + reset + '</div>';
     }
 
+    // Every block is wrapped and tagged with the source line it starts on, which
+    // is what keeps the two panes scrolling together
     function buildPreviewHTML(blocks) {
         return blocks.map((block, i) => {
             const gap = i > 0 ? '<div class="pv-gap"></div>' : '';
-            const body = renderChunks(block.text);
-            if (block.tableIndex === null) return gap + body;
-            // A table with settings of its own carries an accent stripe even when
-            // unhovered: otherwise the header controls look broken when they skip it
-            const own = tableOverrides[block.key];
-            const overridden = own && Object.keys(own).length ? ' is-overridden' : '';
-            return gap + '<div class="pv-table' + overridden + '" data-key="' + attr(block.key) + '">'
-                + tableControlsHTML(block) + body + '</div>';
+            let body = renderChunks(block.text);
+            if (block.tableIndex !== null) {
+                // A table with settings of its own carries an accent stripe even when
+                // unhovered: otherwise the header controls look broken when they skip it
+                const own = tableOverrides[block.key];
+                const overridden = own && Object.keys(own).length ? ' is-overridden' : '';
+                body = '<div class="pv-table' + overridden + '" data-key="' + attr(block.key) + '">'
+                    + tableControlsHTML(block) + body + '</div>';
+            }
+            return gap + '<div class="pv-block" data-line="' + block.line + '">' + body + '</div>';
         }).join('');
     }
 
     // ---- Conversion + render ----
     let lastConverted = '';
+    let lastBlocks = [];
     function render() {
         let converted = '';
         let blocks = [];
@@ -279,6 +284,8 @@
             console.error('Conversion error:', error);
         }
         lastConverted = converted;
+        lastBlocks = blocks;
+        editorTops = null;
         const hasContent = !!converted.trim();
 
         chatEmpty.hidden = hasContent;
@@ -326,7 +333,104 @@
         render();
     }
 
-    input.addEventListener('input', render);
+    // ---- Keeping the panes together ----
+    // Both panes scroll on their own. The one under the pointer leads: the block
+    // at its top is brought to the top of the other, with the position inside
+    // the block carried over so the follower moves smoothly rather than in
+    // jumps. While typing, the preview follows the caret's block instead.
+    const chat = document.getElementById('chat');
+    const mirror = document.getElementById('editor-mirror');
+    let leader = null;
+    // Where each block starts in the editor's scroll space, measured lazily and
+    // thrown away on every render and resize
+    let editorTops = null;
+
+    // A textarea gives no position for a line, so a hidden copy with the same
+    // font and width is filled with the lines before it and measured
+    function measureEditorTops() {
+        const style = getComputedStyle(input);
+        const padTop = parseFloat(style.paddingTop);
+        mirror.style.width = (input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) + 'px';
+        mirror.style.font = style.font;
+        mirror.style.lineHeight = style.lineHeight;
+        mirror.style.letterSpacing = style.letterSpacing;
+        const lines = input.value.split('\n');
+        return lastBlocks.map(block => {
+            if (block.line === 0) return padTop;
+            // The zero-width space keeps a trailing empty line from collapsing
+            mirror.textContent = lines.slice(0, block.line).join('\n') + '\u200b';
+            return padTop + mirror.getBoundingClientRect().height;
+        });
+    }
+
+    function previewTops() {
+        const chatTop = chat.getBoundingClientRect().top - chat.scrollTop;
+        return Array.from(bubbleContent.querySelectorAll('.pv-block'),
+            el => el.getBoundingClientRect().top - chatTop);
+    }
+
+    // Map a scroll offset through two lists of block tops: the block it falls
+    // in, and how far into it, are kept; everything past the last block maps
+    // onto the rest of the other pane
+    function mapScroll(offset, fromTops, fromEnd, toTops, toEnd) {
+        if (!fromTops.length) return offset;
+        let i = fromTops.length - 1;
+        while (i > 0 && fromTops[i] > offset) i--;
+        const fromStart = fromTops[i];
+        const fromNext = i + 1 < fromTops.length ? fromTops[i + 1] : fromEnd;
+        const toStart = toTops[i];
+        const toNext = i + 1 < toTops.length ? toTops[i + 1] : toEnd;
+        const span = fromNext - fromStart;
+        const fraction = span > 0 ? Math.min(1, Math.max(0, (offset - fromStart) / span)) : 0;
+        return toStart + fraction * (toNext - toStart);
+    }
+
+    input.addEventListener('scroll', () => {
+        if (leader !== 'editor' || chatMsg.hidden) return;
+        if (!editorTops) editorTops = measureEditorTops();
+        // Tops are relative to the content; scrollTop of a pane whose first block
+        // sits at its padding maps onto the other pane's padding the same way
+        const tops = previewTops();
+        const target = mapScroll(input.scrollTop + editorTops[0], editorTops, input.scrollHeight, tops, chat.scrollHeight);
+        chat.scrollTop = target - tops[0];
+    });
+    chat.addEventListener('scroll', () => {
+        if (leader !== 'preview' || chatMsg.hidden) return;
+        if (!editorTops) editorTops = measureEditorTops();
+        const tops = previewTops();
+        const target = mapScroll(chat.scrollTop + tops[0], tops, chat.scrollHeight, editorTops, input.scrollHeight);
+        input.scrollTop = target - editorTops[0];
+    });
+    input.addEventListener('pointerenter', () => { leader = 'editor'; });
+    chat.addEventListener('pointerenter', () => { leader = 'preview'; });
+    // A key scrolls the editor wherever the pointer is
+    input.addEventListener('keydown', () => { leader = 'editor'; });
+    window.addEventListener('resize', () => { editorTops = null; });
+
+    // Bring the block holding the caret into the preview, leaving it where it
+    // is when it is already in sight: a keystroke must not jolt the chat
+    function followCaret() {
+        if (chatMsg.hidden || !lastBlocks.length) return;
+        const line = input.value.slice(0, input.selectionStart).split('\n').length - 1;
+        let index = 0;
+        while (index + 1 < lastBlocks.length && lastBlocks[index + 1].line <= line) index++;
+        const el = bubbleContent.querySelectorAll('.pv-block')[index];
+        if (!el) return;
+        const chatRect = chat.getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
+        const margin = 16;
+        if (rect.top < chatRect.top + margin) {
+            chat.scrollTop += rect.top - chatRect.top - margin;
+        } else if (rect.bottom > chatRect.bottom - margin) {
+            chat.scrollTop += Math.min(rect.bottom - chatRect.bottom + margin, rect.top - chatRect.top - margin);
+        }
+    }
+
+    input.addEventListener('input', () => {
+        leader = 'editor';
+        render();
+        followCaret();
+    });
     widthInput.addEventListener('input', () => {
         // An empty field is mid-edit, not a request to go back to the default:
         // reacting would flash every monospace block at the default width

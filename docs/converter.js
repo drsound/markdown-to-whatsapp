@@ -401,15 +401,17 @@ function convertTextToWhatsapp(markdownText, options) {
  * list item or a blockquote renders with the document's settings, because the
  * preview has nowhere to hang a control on it.
  *
- * Each table block also reports `key` (see tableKey), `columns`, `fitsBox`
- * (a box could be drawn), `asList` (the text is the list, by choice or
- * because no box fits) and `listLayout` (which list, null for a box), so an
- * interface can offer exactly the choices left.
+ * Every block reports `line`, the 0-based source line it starts on, so an
+ * interface can line the output up with the input. Each table block also
+ * reports `key` (see tableKey), `columns`, `fitsBox` (a box could be drawn),
+ * `asList` (the text is the list, by choice or because no box fits) and
+ * `listLayout` (which list, null for a box), so an interface can offer
+ * exactly the choices left.
  *
  * @param {string} markdownText - The Markdown input.
  * @param {Object} [options] - See DEFAULT_OPTIONS, plus `tableOverrides`: an
  *   array indexed by table position, or an object keyed by table key.
- * @returns {{text: string, blocks: Array<{text: string, tableIndex: number|null, key: string|null, columns: number, fitsBox: boolean, asList: boolean, listLayout: string|null}>}}
+ * @returns {{text: string, blocks: Array<{text: string, line: number, tableIndex: number|null, key: string|null, columns: number, fitsBox: boolean, asList: boolean, listLayout: string|null}>}}
  */
 function convertToBlocks(markdownText, options) {
     if (!markdownText || !markdownText.trim()) {
@@ -421,9 +423,13 @@ function convertToBlocks(markdownText, options) {
     const blocks = [];
     const seenKeys = new Map();
     let tableIndex = 0;
+    // The lexer consumes the source token by token, so the newlines in the
+    // raw text of the tokens before this one are the line it starts on
+    let line = 0;
 
     for (const token of tokens) {
-        const block = { text: '', tableIndex: null, key: null, columns: 0, fitsBox: false, asList: false, listLayout: null };
+        const block = { text: '', line: line, tableIndex: null, key: null, columns: 0, fitsBox: false, asList: false, listLayout: null };
+        line += (String(token.raw || '').match(/\n/g) || []).length;
 
         if (token.type === 'table') {
             block.tableIndex = tableIndex++;

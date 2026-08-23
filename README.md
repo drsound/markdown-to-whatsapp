@@ -190,7 +190,7 @@ mid-word, and a chat bubble has no horizontal scroll — so the preview reproduc
 
 1.  **Open the web page:** [https://drsound.github.io/markdown-to-whatsapp/](https://drsound.github.io/markdown-to-whatsapp/)
 2.  **Paste, type or drop a `.md` file** into the left panel. "Try an example" fills it with a sample message.
-3.  The right panel shows the message **in a WhatsApp bubble**, exactly as the recipient will see it; "view raw syntax" shows the text that will be copied.
+3.  The right panel shows the message **in a WhatsApp bubble**, exactly as the recipient will see it; "view raw syntax" shows the text that will be copied. The two panels **scroll together** — whichever is under the pointer leads — and while you type the preview follows the cursor.
 4.  **"Copy for WhatsApp"**, or **"Share on WhatsApp"** to open a chat with the message ready via `wa.me`.
 
 The interface follows the **operating system's light or dark theme**; the header toggle
@@ -232,10 +232,11 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
   — the same conversion with the top-level blocks kept apart and each one tagged with the
   table it came from, which is what per-table options are built on — and the
   `mdContainsTable` / `mdContainsHeading` / `mdContainsCode` queries the UI uses to show an
-  option only when it applies. Each table block of `convertToBlocks` also reports its `key`,
+  option only when it applies. Each block of `convertToBlocks` reports the source `line` it
+  starts on, and each table block also its `key`,
   `columns`, `fitsBox` (a box is possible), `asList` (what was written) and `listLayout`, so the
   interface can offer exactly the choices left.
-* `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, copy and share
+* `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, scroll sync between the panels, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
 
 Options are `tableFormat` (`auto` | `list`), `monoWidth`, `borderStyle` (`unicode` | `ascii`),
