@@ -117,12 +117,9 @@ body {
 .opt-toggle:hover { color: var(--text); }
 .opt-toggle.active { background: var(--accent); color: var(--accentText); font-weight: 800; }
 
-/* Hung off the Auto button with a branch glyph, so it reads as Auto's own parameter */
-.numfield { display: flex; align-items: center; gap: 4px; background: var(--card); border-radius: 999px; padding: 5px 11px 5px 8px; }
-.numfield:not(:has(input:not([hidden]))) { display: none; }
-.numfield::before { content: '\21B3'; font: 700 12px 'Nunito Sans', sans-serif; color: var(--muted); }
-.numfield-label, .numfield-unit { font: 700 11px 'Nunito Sans', sans-serif; color: var(--muted); }
-#tableThreshold {
+.numfield { display: flex; align-items: center; gap: 4px; background: var(--card); border-radius: 999px; padding: 5px 11px; }
+.numfield-unit { font: 700 11px 'Nunito Sans', sans-serif; color: var(--muted); }
+.numfield input {
     width: 30px; background: none; border: none; color: var(--text);
     text-align: center; padding: 0;
     font: 800 12px 'Nunito Sans', sans-serif; outline: none;
@@ -156,11 +153,22 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 .bubble code { background: var(--codeBg); border-radius: 3px; padding: 0 3px; font-size: 0.92em; }
+/* Exactly as wide as the bubble the message is going to: pre-wrap keeps the
+   indentation while allowing the break, and `anywhere` breaks a long token the
+   way WhatsApp does instead of scrolling, which a chat bubble never offers.
+   The half-cell of slack absorbs the fractional advances of 26 columns, so a
+   line of exactly --mono-cols characters never wraps on a rounding error.
+   Known limit: the converter counts emoji and CJK as two cells, the browser
+   draws them in a fallback font of its own, so on non-ASCII content the break
+   point here and the one the converter measured can drift apart. */
 .bubble .pv-code {
+    --pv-code-pad: 10px;
     font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.5;
-    background: rgba(0, 0, 0, 0.22); border-radius: 8px; padding: 8px 10px; margin: 6px 0;
-    white-space: pre; overflow-x: auto;
-    width: fit-content; max-width: 100%;
+    background: rgba(0, 0, 0, 0.22); border-radius: 8px;
+    padding: 8px var(--pv-code-pad); margin: 6px 0;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    width: fit-content;
+    max-width: min(100%, calc(var(--mono-cols, 26) * 1ch + 0.5ch + 2 * var(--pv-code-pad)));
 }
 /* Per-table controls: revealed on hover so the bubble stays a faithful preview */
 .bubble .pv-table { position: relative; border-radius: 6px; transition: box-shadow 0.15s, background 0.15s; }
@@ -215,13 +223,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .bubble .pv-table-controls .border-seg button { padding: 4px 9px; font-size: 11px; }
 .bubble .pv-table-controls .opt-toggle { background: var(--chip); font-size: 11px; padding: 5px 11px; }
 .bubble .pv-table-controls .opt-toggle.active { background: var(--accent); }
-.pv-numfield { display: flex; align-items: center; gap: 4px; background: var(--chip); border-radius: 999px; padding: 4px 10px; }
-.pv-numfield span { font: 700 10.5px 'Nunito Sans', sans-serif; color: var(--muted); }
-.bubble .pv-thr {
-    width: 26px; padding: 0; border: none; background: none;
-    color: var(--text); text-align: center;
-    font: 800 11px 'Nunito Sans', sans-serif; outline: none;
-}
+.pv-tc-note { margin: 0; max-width: 30ch; font: 700 11px 'Nunito Sans', sans-serif; color: var(--muted); line-height: 1.45; }
 /* A full-width foot, so undoing an override never competes with setting one.
    Rounds itself rather than being clipped: the panel's caret and hover bridge
    live outside its box and overflow:hidden would eat them. */

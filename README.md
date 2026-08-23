@@ -50,12 +50,21 @@ The emoji prefix can be turned off in the UI ("Emoji prefix in headings"), leavi
 * **Loose items:** multiple paragraphs of one item are joined on a single line
 * **Block content in items:** code blocks, blockquotes and nested lists are emitted on their own lines below the item
 
+### Bubble width
+A WhatsApp bubble fits a fixed number of monospace characters on one line — about **26** on a
+360 px phone, which is the default. Measure yours by sending yourself a code block and counting
+where it breaks, then set `monoWidth` to that.
+
+The number is a property of the phone, not of any one table, so it governs everything monospace:
+tables degrade to stay under it, and the preview draws every code block exactly that wide, wrapping
+where the recipient's WhatsApp will wrap.
+
 ### Tables
-The converter supports **three strategies** for table rendering, chosen in the UI for the
-whole document or for one table at a time:
+The converter supports **two strategies** for table rendering, chosen in the UI for the whole
+document or for one table at a time:
 
 1. **Table box**
-   A drawn table inside a monospace block, at its natural width.
+   A drawn table inside a monospace block, as wide as it needs and never wider than the bubble.
    ```
    ┌────────┬─────────────┐
    │ Name   │ Description │
@@ -96,32 +105,46 @@ whole document or for one table at a time:
    
    Key-Value detection supports **11 languages**: English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and Indonesian.
 
-3. **Auto (Smart Switch)**
-   Degrades progressively until the table fits the configurable limit (default **26 chars**):
-   1. Full box, removing padding column by column (right-side first, then left-side).
-   2. **Compact borderless** style, again removing padding progressively:
-      ```
-       Head1│Head2       │Head-N
-      ──────┼────────────┼──────
-       A    │BBBBBBBBBBBB│C
-      ```
-   3. **Wrapped compact** style: each column gets at least its longest word, the
-      remaining width is shared proportionally and cells are word-wrapped — only
-      while a row still fits two physical lines, past which the list reads better.
-   4. **Bulleted List**, when not even the longest words fit.
+**How the box degrades**
+
+The box is not drawn at any width: it degrades until it fits `monoWidth`, and becomes a list when
+nothing does. There is no way to ask for a table wider than the bubble.
+
+1. Full box, removing padding column by column (right-side first, then left-side).
+2. **Compact borderless** style, again removing padding progressively:
+   ```
+    Head1│Head2       │Head-N
+   ──────┼────────────┼──────
+    A    │BBBBBBBBBBBB│C
+   ```
+3. **Wrapped compact** style: each column gets at least its longest word, the remaining width is
+   shared proportionally and cells are word-wrapped — only while a row still fits two physical
+   lines, past which the list reads better.
+4. **Bulleted List**, when not even the longest words fit.
+
+A table that cannot fit any box says so in its own panel instead of offering a choice that would
+change nothing.
 
 **Additional table behaviour**
 * Column widths are measured in display cells, so emoji and CJK text stay aligned (`✅`, `日本語` count as two columns).
 * Column alignment (`:---`, `:---:`, `---:`) is honoured in the box and compact styles.
 * Header-only tables render without an empty body or a doubled border.
 * `<br>` inside a cell becomes a space, and an escaped `\|` becomes `∣` so it cannot fake an extra column.
-* **Border style** defaults to Unicode box drawing (`┌───┐`); ASCII (`+---+`) can be chosen in the UI, where the control appears in ASCII table mode.
+* **Border style** defaults to Unicode box drawing (`┌───┐`); ASCII (`+---+`) can be chosen in the UI. It is a document-wide choice, not a per-table one.
 * **Row separator** (default off) draws a rule between body rows, in every boxed and compact style.
-* Every option can be set **per table**: hovering a table in the preview reveals its own
-  controls, which start from the document default and override it for that table only. A
+* The **style** and the **row separator** can be set **per table**: hovering a table in the
+  preview reveals its own controls, which start from the document default and override it for
+  that table only. The width is not among them — there is one bubble, and it is the same for
+  every table. A
   table carrying its own settings keeps a small dot, since the controls at the top of the
   panel deliberately leave it alone — its "default" button hands it back to them. A table
   nested inside a list item or a blockquote always follows the document default.
+
+### Code blocks
+Fenced and indented blocks reach WhatsApp verbatim: the converter never re-wraps or re-indents
+them, since a line break inside code is content, not layout. WhatsApp wraps long lines by itself,
+mid-word, and a chat bubble has no horizontal scroll — so the preview reproduces that wrap at
+`monoWidth` instead of scrolling, and shows exactly where the recipient will see the break.
 
 ### Other Elements
 * **Links:** `[text](url)` → `text (url)`; autolinks, `<https://x>`, `[url](url)` and `<me@x.com>` render as the bare URL or address (no duplication, no `mailto:` leak)
@@ -170,7 +193,7 @@ npm test
 
 The test suite uses file-based testing:
 * `tests/inputs/*.md` - Markdown input files
-* `tests/inputs/*.json` - optional per-fixture converter options (e.g. `{ "tableFormat": "ascii" }`)
+* `tests/inputs/*.json` - optional per-fixture converter options (e.g. `{ "monoWidth": 40 }`)
 * `tests/expected/*.txt` - Expected WhatsApp output
 
 Tests also run in CI on every push and pull request (`.github/workflows/test.yml`).
@@ -181,15 +204,20 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
   It exposes `convertTextToWhatsapp(markdown, options)`, `convertToBlocks(markdown, options)`
   — the same conversion with the top-level blocks kept apart and each one tagged with the
   table it came from, which is what per-table options are built on — and the
-  `mdContainsTable` / `mdContainsHeading` queries the UI uses to show an option only when it
-  applies.
+  `mdContainsTable` / `mdContainsHeading` / `mdContainsCode` queries the UI uses to show an
+  option only when it applies. Each block of `convertToBlocks` also reports `fitsBox`, so the
+  interface can offer a table its style only where a box is possible.
 * `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
 
-Options are `tableFormat` (`auto` | `ascii` | `always`), `tableThreshold`, `borderStyle`
-(`unicode` | `ascii`), `rowSeparator`, `headingEmojis`, and `tableOverrides` — an array
-indexed by the table's position in the document, each entry overriding any of the others for
-that table alone.
+Options are `tableFormat` (`ascii` | `list`), `monoWidth`, `borderStyle` (`unicode` | `ascii`),
+`rowSeparator`, `headingEmojis`, and `tableOverrides` — an array indexed by the table's position
+in the document, each entry overriding any of the others for that table alone.
+
+The older names are still accepted on input: `tableThreshold` for `monoWidth`, and `auto` / `always`
+for `tableFormat`. `auto` is what `ascii` means now; the old `ascii`, which drew a box at any width,
+has no equivalent and maps to the degrading one. When both the old and the new name are given, the
+new one wins and the old is dropped.
 
 The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in both
 `docs/index.html` (with an SRI hash) and `tests/package.json`, so the page and the tests

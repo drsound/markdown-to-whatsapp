@@ -1,0 +1,6 @@
+```
+ Name     │Description        │Notes
+──────────┼───────────────────┼─────────
+ Bold Item│This is italic text│crossed
+ Another  │Sample code here   │More text
+```

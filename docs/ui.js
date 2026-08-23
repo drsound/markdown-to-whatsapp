@@ -9,8 +9,8 @@
     const copyButton = document.getElementById('copy-button');
     const copyLabel = document.getElementById('copy-label');
     const shareLink = document.getElementById('share-link');
-    const tableControls = document.getElementById('table-controls');
-    const thresholdInput = document.getElementById('tableThreshold');
+    const optbar = document.getElementById('preview-options');
+    const widthInput = document.getElementById('monoWidth');
     const rawToggle = document.getElementById('raw-toggle');
     const previewTitle = document.getElementById('preview-title');
     const msgTime = document.getElementById('msg-time');
@@ -21,14 +21,15 @@
     const themeDark = document.getElementById('theme-dark');
     const borderSeg = document.getElementById('border-seg');
     const borderControls = document.getElementById('border-controls');
-    const thresholdLabel = document.getElementById('threshold-label');
-    const thresholdUnit = document.getElementById('threshold-unit');
+    const widthControls = document.getElementById('width-controls');
+    const tablesTitle = document.getElementById('tables-title');
+    const styleControls = document.getElementById('style-controls');
     const rowsControls = document.getElementById('rows-controls');
     const rowsToggle = document.getElementById('rows-toggle');
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
-    const options = { tableFormat: 'auto', tableThreshold: 26, borderStyle: 'unicode', rowSeparator: false, headingEmojis: true };
+    const options = Object.assign({}, DEFAULT_OPTIONS);
     // Per-table overrides, keyed by the table's position in the document. Not
     // persisted: they belong to the text being converted, not to the user.
     const tableOverrides = [];
@@ -39,9 +40,23 @@
     function loadOptions() {
         let stored = null;
         try { stored = JSON.parse(localStorage.getItem(OPTIONS_KEY) || 'null'); } catch (e) { }
-        if (stored) Object.assign(options, stored);
+        if (stored) {
+            // Only the keys we know: the storage belongs to the visitor, not to us,
+            // and whatever is in it goes straight into the converter
+            Object.keys(options).forEach(key => {
+                if (stored[key] !== undefined) options[key] = stored[key];
+            });
+            // Settings saved before the width became a global: the value survives,
+            // the old names do not, and the next save writes the storage clean
+            if (stored.monoWidth === undefined && stored.tableThreshold !== undefined) {
+                options.monoWidth = stored.tableThreshold;
+            }
+            if (FORMAT_ALIASES[stored.tableFormat]) options.tableFormat = FORMAT_ALIASES[stored.tableFormat];
+        }
+        const width = parseInt(options.monoWidth, 10);
+        options.monoWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_OPTIONS.monoWidth;
 
-        thresholdInput.value = String(options.tableThreshold);
+        widthInput.value = String(options.monoWidth);
         emojiToggle.classList.toggle('active', options.headingEmojis);
         rowsToggle.classList.toggle('active', options.rowSeparator);
         rowsToggle.setAttribute('aria-pressed', String(options.rowSeparator));
@@ -154,31 +169,31 @@
 
     // The panel shows the options this table actually renders with, whether they
     // come from the document defaults or from its own override.
-    function tableControlsHTML(index) {
+    function tableControlsHTML(index, fitsBox) {
         const own = tableOverrides[index] || {};
         const eff = Object.assign({}, options, own);
         const custom = Object.keys(own).length > 0;
 
         const head = '<div class="pv-tc-head"><span class="pv-tc-title">This table</span></div>';
         let reset = '';
+        let body;
 
-        const rows = [row('Style', seg('tableFormat', index, eff.tableFormat, [['ascii', 'ASCII'], ['always', 'List'], ['auto', 'Auto']]))];
+        if (!fitsBox) {
+            // No layout of this table fits the bubble, so there is nothing to choose:
+            // say why instead of showing a control that cannot change anything
+            body = '<p class="pv-tc-note">Too wide for a box at ' + options.monoWidth
+                + ' ch, so it reads as a list.</p>';
+        } else {
+            const rows = [row('Style', seg('tableFormat', index, eff.tableFormat, [['ascii', 'ASCII'], ['list', 'List']]))];
 
-        if (eff.tableFormat === 'auto') {
-            rows.push(row('Max', '<div class="pv-numfield">'
-                + '<input type="number" class="pv-thr" min="1" max="200" value="' + eff.tableThreshold + '"'
-                + ' data-table="' + index + '" data-opt="tableThreshold" data-pv-focus="thr-' + index + '"'
-                + ' aria-label="Maximum table width in characters"><span>ch</span></div>'));
-        }
-        if (eff.tableFormat !== 'always') {
-            rows.push(row('Border', seg('borderStyle', index, eff.borderStyle, [['unicode', 'Unicode'], ['ascii', 'Plain']], 'border-seg')));
-        }
-        if (eff.tableFormat !== 'always') {
-            rows.push(row('Separator', '<button type="button" class="check' + (eff.rowSeparator ? ' active' : '') + '"'
-                + ' data-table="' + index + '" data-opt="rowSeparator" data-value="toggle"'
-                + ' aria-pressed="' + (eff.rowSeparator ? 'true' : 'false') + '"'
-                + ' aria-label="Draw a rule between table rows"'
-                + ' title="Draw a rule between table rows"><span class="check-box"></span></button>'));
+            if (eff.tableFormat !== 'list') {
+                rows.push(row('Separator', '<button type="button" class="check' + (eff.rowSeparator ? ' active' : '') + '"'
+                    + ' data-table="' + index + '" data-opt="rowSeparator" data-value="toggle"'
+                    + ' aria-pressed="' + (eff.rowSeparator ? 'true' : 'false') + '"'
+                    + ' aria-label="Draw a rule between table rows"'
+                    + ' title="Draw a rule between table rows"><span class="check-box"></span></button>'));
+            }
+            body = '<div class="pv-tc-grid">' + rows.join('') + '</div>';
         }
 
         if (custom) {
@@ -187,7 +202,7 @@
         }
 
         return '<div class="pv-table-controls"><div class="pv-tc-body">' + head
-            + '<div class="pv-tc-grid">' + rows.join('') + '</div></div>' + reset + '</div>';
+            + body + '</div>' + reset + '</div>';
     }
 
     function buildPreviewHTML(blocks) {
@@ -200,7 +215,7 @@
             const own = tableOverrides[block.tableIndex];
             const overridden = own && Object.keys(own).length ? ' is-overridden' : '';
             return gap + '<div class="pv-table' + overridden + '" data-table="' + block.tableIndex + '">'
-                + tableControlsHTML(block.tableIndex) + body + '</div>';
+                + tableControlsHTML(block.tableIndex, block.fitsBox) + body + '</div>';
         }).join('');
     }
 
@@ -217,9 +232,6 @@
             console.error('Conversion error:', error);
         }
         lastConverted = converted;
-        // A control the user is typing in survives the re-render
-        const active = document.activeElement;
-        const focusKey = active && active.dataset ? active.dataset.pvFocus : null;
         const hasContent = !!converted.trim();
 
         chatEmpty.hidden = hasContent;
@@ -227,15 +239,23 @@
         copyButton.disabled = !hasContent;
         shareLink.classList.toggle('disabled', !hasContent);
         shareLink.href = hasContent ? 'https://wa.me/?text=' + encodeURIComponent(converted) : '#';
-        tableControls.hidden = !mdContainsTable(input.value);
-        const showThreshold = options.tableFormat === 'auto';
-        thresholdInput.hidden = !showThreshold;
-        thresholdLabel.hidden = !showThreshold;
-        thresholdUnit.hidden = !showThreshold;
-        // Auto can still draw a box, so the border choice matters there too
-        borderControls.hidden = tableControls.hidden || options.tableFormat === 'always';
-        rowsControls.hidden = tableControls.hidden || options.tableFormat === 'always';
+        // The bar answers to three independent facts, not to one another
+        const hasTable = mdContainsTable(input.value);
+        const hasCode = mdContainsCode(input.value);
+        const isList = options.tableFormat === 'list';
+
+        optbar.hidden = !(hasTable || hasCode);
+        // In list mode a table draws no monospace at all: with no code block
+        // around either, the width would be a knob connected to nothing
+        widthControls.hidden = optbar.hidden || (!hasCode && isList);
+        tablesTitle.hidden = !hasTable;
+        styleControls.hidden = !hasTable;
+        borderControls.hidden = !hasTable || isList;
+        rowsControls.hidden = !hasTable || isList;
         emojiToggle.hidden = !mdContainsHeading(input.value);
+
+        // The preview draws every monospace block at the real bubble width
+        bubbleContent.style.setProperty('--mono-cols', String(options.monoWidth));
 
         if (hasContent) {
             if (showRaw) {
@@ -243,10 +263,6 @@
             } else {
                 bubbleContent.innerHTML = buildPreviewHTML(blocks);
                 placePanels();
-                if (focusKey) {
-                    const restored = bubbleContent.querySelector('[data-pv-focus="' + focusKey + '"]');
-                    if (restored) restored.focus();
-                }
             }
             const now = new Date();
             msgTime.textContent = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
@@ -261,8 +277,11 @@
     }
 
     input.addEventListener('input', render);
-    thresholdInput.addEventListener('input', () => {
-        options.tableThreshold = parseInt(thresholdInput.value, 10) || 26;
+    widthInput.addEventListener('input', () => {
+        // An empty field is mid-edit, not a request to go back to the default:
+        // reacting would flash every monospace block at the default width
+        if (widthInput.value === '') return;
+        options.monoWidth = parseInt(widthInput.value, 10) || DEFAULT_OPTIONS.monoWidth;
         update();
     });
     document.querySelectorAll('.fmt-seg button').forEach(btn => {
@@ -327,12 +346,6 @@
         } else if (control.dataset.value) {
             setOverride(index, { [opt]: control.dataset.value });
         }
-    });
-
-    bubbleContent.addEventListener('input', (event) => {
-        const field = event.target.closest('input[data-opt="tableThreshold"]');
-        if (!field) return;
-        setOverride(Number(field.dataset.table), { tableThreshold: parseInt(field.value, 10) || options.tableThreshold });
     });
 
     emojiToggle.addEventListener('click', () => {

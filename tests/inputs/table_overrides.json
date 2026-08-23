@@ -1,1 +1,1 @@
-{ "tableOverrides": [{ "tableFormat": "ascii", "rowSeparator": true }, { "tableFormat": "always" }] }
+{ "tableOverrides": [{ "tableFormat": "ascii", "rowSeparator": true }, { "tableFormat": "list" }] }

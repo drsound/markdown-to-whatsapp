@@ -24,10 +24,12 @@ const HEADER_EMOJIS = {
 
 /**
  * Default conversion options.
- * - tableFormat:    'auto' | 'ascii' | 'always' (always = bulleted list)
- * - tableThreshold: max table width in characters before degrading (auto mode)
- * - borderStyle:    'ascii' | 'unicode' box-drawing characters
- * - headingEmojis:  prepend a level emoji to headings
+ * - tableFormat:   'ascii' | 'list' ('ascii' degrades to the list when no box fits)
+ * - monoWidth:     how many monospace characters fit on one line of a WhatsApp
+ *                  bubble. A property of the reader's phone, not of the table:
+ *                  tables degrade to stay under it, and nothing is ever wider.
+ * - borderStyle:   'ascii' | 'unicode' box-drawing characters
+ * - headingEmojis: prepend a level emoji to headings
  */
 /**
  * How many physical lines one logical row may take in the wrapped layout before
@@ -36,8 +38,8 @@ const HEADER_EMOJIS = {
 const MAX_WRAPPED_LINES_PER_ROW = 2;
 
 const DEFAULT_OPTIONS = {
-    tableFormat: 'auto',
-    tableThreshold: 26,
+    tableFormat: 'ascii',
+    monoWidth: 26,
     borderStyle: 'unicode',
     rowSeparator: false,
     headingEmojis: true
@@ -279,14 +281,42 @@ function longestWordWidth(text) {
 }
 
 /**
+ * Option names this converter used to answer to. `tableThreshold` became
+ * `monoWidth` when the width stopped being a table setting, and the three
+ * formats collapsed to two: `auto` was already what `ascii` means now, and the
+ * old `ascii` drew a box at any width, which the bubble cannot honour.
+ */
+const FORMAT_ALIASES = { auto: 'ascii', always: 'list' };
+
+/**
+ * Resolve the deprecated names on a raw options object. Applied before every
+ * merge rather than inside normalizeOptions: the latter runs twice on the way
+ * to a table (document, then per-table override), and a leftover legacy key
+ * surviving the first pass would win the second one by merge order alone.
+ * The canonical name wins when both are present, and the alias is consumed.
+ * @param {Object} [raw]
+ * @returns {Object|undefined}
+ */
+function canonicalOptions(raw) {
+    if (!raw) return raw;
+    const out = Object.assign({}, raw);
+    if ('tableThreshold' in out) {
+        if (out.monoWidth === undefined) out.monoWidth = out.tableThreshold;
+        delete out.tableThreshold;
+    }
+    if (FORMAT_ALIASES[out.tableFormat]) out.tableFormat = FORMAT_ALIASES[out.tableFormat];
+    return out;
+}
+
+/**
  * Merge user options with the defaults.
  * @param {Object} [options]
  * @returns {Object}
  */
 function normalizeOptions(options) {
-    const merged = Object.assign({}, DEFAULT_OPTIONS, options || {});
-    const threshold = parseInt(merged.tableThreshold, 10);
-    merged.tableThreshold = Number.isFinite(threshold) && threshold > 0 ? threshold : DEFAULT_OPTIONS.tableThreshold;
+    const merged = Object.assign({}, DEFAULT_OPTIONS, canonicalOptions(options) || {});
+    const width = parseInt(merged.monoWidth, 10);
+    merged.monoWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_OPTIONS.monoWidth;
     if (!BORDERS[merged.borderStyle]) merged.borderStyle = DEFAULT_OPTIONS.borderStyle;
     merged.rowSeparator = Boolean(merged.rowSeparator);
     merged.tableOverrides = Array.isArray(merged.tableOverrides) ? merged.tableOverrides : [];
@@ -302,7 +332,7 @@ function normalizeOptions(options) {
  */
 function tableOptionsFor(opts, index) {
     const override = opts.tableOverrides[index];
-    return override ? normalizeOptions(Object.assign({}, opts, override)) : opts;
+    return override ? normalizeOptions(Object.assign({}, opts, canonicalOptions(override))) : opts;
 }
 
 // =================================================================================================
@@ -347,7 +377,7 @@ function convertTextToWhatsapp(markdownText, options) {
  *
  * @param {string} markdownText - The Markdown input.
  * @param {Object} [options] - See DEFAULT_OPTIONS, plus `tableOverrides`.
- * @returns {{text: string, blocks: Array<{text: string, tableIndex: number|null}>}}
+ * @returns {{text: string, blocks: Array<{text: string, tableIndex: number|null, fitsBox: boolean}>}}
  */
 function convertToBlocks(markdownText, options) {
     if (!markdownText || !markdownText.trim()) {
@@ -363,14 +393,18 @@ function convertToBlocks(markdownText, options) {
         let rendered;
         let index = null;
 
+        let fitsBox = false;
+
         if (token.type === 'table') {
             index = tableIndex++;
-            rendered = renderTable(token, tableOptionsFor(opts, index));
+            const parts = renderTableParts(token, tableOptionsFor(opts, index));
+            rendered = parts.text;
+            fitsBox = parts.fitsBox;
         } else {
             rendered = renderToken(token, opts);
         }
 
-        if (rendered) blocks.push({ text: rendered, tableIndex: index });
+        if (rendered) blocks.push({ text: rendered, tableIndex: index, fitsBox: fitsBox });
     }
 
     // Same trim as a plain conversion, applied to the ends of the outer blocks
@@ -1062,45 +1096,53 @@ function naturalColumnWidths(header, rows) {
 }
 
 /**
+ * Render a table, and say whether it got a box.
+ *
+ * In 'ascii' the box degrades until it fits `monoWidth` — padding first, then
+ * the outer border, then wrapped cells — and falls back to the list when even
+ * the narrowest layout overflows. There is no way to ask for a box wider than
+ * the bubble: what does not fit is a list, and `boxed` reports which happened
+ * so the interface can offer the choice only where there is one. `fitsBox` is
+ * about the table, not about the rendering: a table set to the list still
+ * reports true when a box would have fit, or there would be no way back.
+ * @param {Object} token - Table token
+ * @param {Object} opts - Conversion options
+ * @returns {{text: string, boxed: boolean}}
+ */
+function renderTableParts(token, opts) {
+    const header = token.header.map(tableCellText);
+    const rows = token.rows.map(row => row.map(tableCellText));
+    const align = token.align || header.map(() => null);
+    const natural = naturalColumnWidths(header, rows);
+    const groups = rows.map(row => [row]);
+    const wanted = opts.tableFormat !== 'list';
+
+    // Progressively degrade until the table fits the bubble
+    for (const layout of generateLayouts(header.length)) {
+        if (layoutWidth(natural, layout) <= opts.monoWidth) {
+            const text = wanted
+                ? fenceTable(renderTableGrid([header], groups, natural, align, layout, opts))
+                : renderTableAsList(token);
+            return { text: text, fitsBox: true };
+        }
+    }
+
+    // Still too wide: try wrapping cell content inside a compact layout
+    const wrapped = renderTableWrapped(header, rows, natural, align, opts);
+    if (wrapped) return { text: wanted ? wrapped : renderTableAsList(token), fitsBox: true };
+
+    // Nothing fits: a list is the only honest rendering
+    return { text: renderTableAsList(token), fitsBox: false };
+}
+
+/**
  * Render a table with the optimal format (boxed / compact ASCII, wrapped, or list).
  * @param {Object} token - Table token
  * @param {Object} opts - Conversion options
  * @returns {string} Formatted table
  */
 function renderTable(token, opts) {
-    if (opts.tableFormat === 'always') {
-        return renderTableAsList(token);
-    }
-
-    const header = token.header.map(tableCellText);
-    const rows = token.rows.map(row => row.map(tableCellText));
-    const align = token.align || header.map(() => null);
-    const natural = naturalColumnWidths(header, rows);
-    const fullLayout = {
-        border: 'full',
-        leftPadding: header.map(() => true),
-        rightPadding: header.map(() => true)
-    };
-
-    const groups = rows.map(row => [row]);
-
-    if (opts.tableFormat === 'ascii') {
-        return fenceTable(renderTableGrid([header], groups, natural, align, fullLayout, opts));
-    }
-
-    // 'auto' mode: progressively degrade until the table fits the threshold
-    for (const layout of generateLayouts(header.length)) {
-        if (layoutWidth(natural, layout) <= opts.tableThreshold) {
-            return fenceTable(renderTableGrid([header], groups, natural, align, layout, opts));
-        }
-    }
-
-    // Still too wide: try wrapping cell content inside a compact layout
-    const wrapped = renderTableWrapped(header, rows, natural, align, opts);
-    if (wrapped) return wrapped;
-
-    // Nothing fits: fall back to a bulleted list
-    return renderTableAsList(token);
+    return renderTableParts(token, opts).text;
 }
 
 /**
@@ -1184,7 +1226,7 @@ function renderTableWrapped(header, rows, natural, align, opts) {
 
     // Threshold minus separators and padding
     const overhead = (colCount - 1) + 2 * colCount;
-    const available = opts.tableThreshold - overhead;
+    const available = opts.monoWidth - overhead;
     if (available < colCount) return null;
 
     // Each column must at least fit its longest single word
@@ -1401,6 +1443,22 @@ function mdContainsHeading(markdownText) {
     }
 }
 
+/**
+ * Whether the Markdown contains a code block, at any nesting level. Indented
+ * blocks count too: they reach WhatsApp as the same monospace fence, and wrap
+ * against the same width.
+ * @param {string} markdownText
+ * @returns {boolean}
+ */
+function mdContainsCode(markdownText) {
+    if (!markdownText || !markdownText.trim()) return false;
+    try {
+        return someToken(marked.lexer(markdownText), token => token.type === 'code');
+    } catch {
+        return false;
+    }
+}
+
 // =================================================================================================
 // EXPORTS
 // =================================================================================================
@@ -1412,6 +1470,7 @@ if (typeof module !== 'undefined' && module.exports) {
         convertToBlocks,
         mdContainsTable,
         mdContainsHeading,
+        mdContainsCode,
         DEFAULT_OPTIONS,
         displayWidth,
         decodeEntities,
