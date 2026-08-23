@@ -1,0 +1,4 @@
+| Hypervisor | Storage notes |
+|---|---|
+| Proxmox | ZFS with replication |
+| ESXi | VMFS datastores |

@@ -24,26 +24,30 @@ const HEADER_EMOJIS = {
 
 /**
  * Default conversion options.
- * - tableFormat:   'ascii' | 'list' ('ascii' degrades to the list when no box fits)
+ * - tableFormat:   'auto' | 'list'. `auto` draws a box whenever one can be drawn
+ *                  within `monoWidth` and writes the list otherwise; `list`
+ *                  always writes the list.
  * - monoWidth:     how many monospace characters fit on one line of a WhatsApp
  *                  bubble. A property of the reader's phone, not of the table:
  *                  tables degrade to stay under it, and nothing is ever wider.
  * - borderStyle:   'ascii' | 'unicode' box-drawing characters
+ * - rowSeparator:  draw a rule between body rows (always drawn when a row wraps)
  * - headingEmojis: prepend a level emoji to headings
+ * - listLayout:    'auto' | 'rows' | 'columns' | 'pairs' — how a table reads as
+ *                  a list: one group per row, one group per column, or bare
+ *                  `key: value` pairs (two columns only). `auto` guesses from
+ *                  the headers and the bold cells, see detectTableType.
  */
-/**
- * How many physical lines one logical row may take in the wrapped layout before
- * the list format wins on readability.
- */
-const MAX_WRAPPED_LINES_PER_ROW = 2;
-
 const DEFAULT_OPTIONS = {
-    tableFormat: 'ascii',
+    tableFormat: 'auto',
     monoWidth: 26,
     borderStyle: 'unicode',
     rowSeparator: false,
-    headingEmojis: true
+    headingEmojis: true,
+    listLayout: 'auto'
 };
+
+const LIST_LAYOUTS = ['auto', 'rows', 'columns', 'pairs'];
 
 /**
  * Box-drawing characters per border style.
@@ -118,10 +122,28 @@ const KV_HEADERS_HI = ['विशेषता', 'मान', 'कुंजी', 
 const KV_HEADERS_BN = ['বৈশিষ্ট্য', 'মান', 'চাবি', 'প্যারামিটার', 'সম্পত্তি', 'ক্ষেত্র', 'বিবরণ', 'সেটিং', 'বিকল্প', 'নাম', 'বিস্তারিত', 'স্পেসিফিকেশন', 'মেট্রিক', 'পরিমাপ', 'উপাদান'];
 const KV_HEADERS_ID = ['atribut', 'nilai', 'kunci', 'parameter', 'properti', 'bidang', 'deskripsi', 'pengaturan', 'opsi', 'nama', 'detail', 'spesifikasi', 'metrik', 'ukuran', 'elemen'];
 
+// First-column headers of a comparison matrix (`| Feature | Proxmox | ESXi |`):
+// the things being compared sit in the columns, and the rows are their properties.
+// Deliberately narrower than the generic set: `Name | Price | Stock` is a list of
+// named things, one per row, and must not be read as a matrix.
+const MATRIX_HEADERS = [
+    'feature', 'attribute', 'parameter', 'property', 'spec', 'specification', 'criteria', 'criterion', 'characteristic', 'metric', 'aspect',
+    'caratteristica', 'caratteristiche', 'funzionalità', 'attributo', 'parametro', 'proprietà', 'specifica', 'criterio', 'metrica', 'aspetto',
+    'característica', 'función', 'atributo', 'parámetro', 'propiedad', 'especificación', 'criterio', 'métrica', 'aspecto',
+    'caractéristique', 'fonctionnalité', 'attribut', 'paramètre', 'propriété', 'spécification', 'critère', 'métrique',
+    'funcionalidade', 'recurso', 'parâmetro', 'propriedade', 'especificação', 'critério',
+    'merkmal', 'merkmale', 'funktion', 'eigenschaft', 'eigenschaften', 'parameter', 'spezifikation', 'kriterium', 'kriterien', 'metrik', 'aspekt',
+    'характеристика', 'функция', 'атрибут', 'параметр', 'свойство', 'спецификация', 'критерий', 'метрика', 'аспект',
+    'ميزة', 'خاصية', 'سمة', 'معامل', 'مواصفة', 'معيار', 'مقياس', 'جانب',
+    'विशेषता', 'सुविधा', 'पैरामीटर', 'संपत्ति', 'विनिर्देश', 'मानदंड', 'मीट्रिक', 'पहलू',
+    'বৈশিষ্ট্য', 'সুবিধা', 'প্যারামিটার', 'সম্পত্তি', 'স্পেসিফিকেশন', 'মানদণ্ড', 'মেট্রিক', 'দিক',
+    'fitur', 'atribut', 'parameter', 'properti', 'spesifikasi', 'kriteria', 'metrik', 'aspek'
+];
+
 const KEY_VALUE_HEADERS = [
     ...KV_HEADERS_EN, ...KV_HEADERS_IT, ...KV_HEADERS_ES, ...KV_HEADERS_FR,
     ...KV_HEADERS_PT, ...KV_HEADERS_DE, ...KV_HEADERS_RU, ...KV_HEADERS_AR,
-    ...KV_HEADERS_HI, ...KV_HEADERS_BN, ...KV_HEADERS_ID
+    ...KV_HEADERS_HI, ...KV_HEADERS_BN, ...KV_HEADERS_ID, ...MATRIX_HEADERS
 ];
 
 // =================================================================================================
@@ -283,10 +305,10 @@ function longestWordWidth(text) {
 /**
  * Option names this converter used to answer to. `tableThreshold` became
  * `monoWidth` when the width stopped being a table setting, and the three
- * formats collapsed to two: `auto` was already what `ascii` means now, and the
- * old `ascii` drew a box at any width, which the bubble cannot honour.
+ * formats collapsed to two: `ascii` was a misnomer for what `auto` does (the
+ * box has never been drawn wider than the bubble), and `always` meant the list.
  */
-const FORMAT_ALIASES = { auto: 'ascii', always: 'list' };
+const FORMAT_ALIASES = { ascii: 'auto', always: 'list' };
 
 /**
  * Resolve the deprecated names on a raw options object. Applied before every
@@ -318,8 +340,13 @@ function normalizeOptions(options) {
     const width = parseInt(merged.monoWidth, 10);
     merged.monoWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_OPTIONS.monoWidth;
     if (!BORDERS[merged.borderStyle]) merged.borderStyle = DEFAULT_OPTIONS.borderStyle;
+    if (merged.tableFormat !== 'list') merged.tableFormat = 'auto';
+    if (!LIST_LAYOUTS.includes(merged.listLayout)) merged.listLayout = DEFAULT_OPTIONS.listLayout;
     merged.rowSeparator = Boolean(merged.rowSeparator);
-    merged.tableOverrides = Array.isArray(merged.tableOverrides) ? merged.tableOverrides : [];
+    // Overrides come either as an array indexed by table position or as an
+    // object keyed by the table's key (see tableKey); anything else is none
+    const overrides = merged.tableOverrides;
+    merged.tableOverrides = overrides && typeof overrides === 'object' ? overrides : [];
     return merged;
 }
 
@@ -328,11 +355,28 @@ function normalizeOptions(options) {
  * else inherits the document's settings.
  * @param {Object} opts - Normalized document options
  * @param {number} index - Position of the table in the document
+ * @param {string} key - The table's key, see tableKey
  * @returns {Object}
  */
-function tableOptionsFor(opts, index) {
-    const override = opts.tableOverrides[index];
+function tableOptionsFor(opts, index, key) {
+    const overrides = opts.tableOverrides;
+    const override = Array.isArray(overrides) ? overrides[index] : overrides[key];
     return override ? normalizeOptions(Object.assign({}, opts, canonicalOptions(override))) : opts;
+}
+
+/**
+ * A name for a table that survives edits elsewhere in the document, unlike its
+ * position: the header texts, plus an ordinal when an earlier table already
+ * has the same header. Two identical tables are still two tables.
+ * @param {Object} token - Table token
+ * @param {Map<string, number>} seen - How many times each base key appeared so far
+ * @returns {string}
+ */
+function tableKey(token, seen) {
+    const base = token.header.map(cell => renderPlainText(cell.tokens).trim()).join('|');
+    const count = (seen.get(base) || 0) + 1;
+    seen.set(base, count);
+    return count === 1 ? base : base + '#' + count;
 }
 
 // =================================================================================================
@@ -375,9 +419,15 @@ function convertTextToWhatsapp(markdownText, options) {
  * list item or a blockquote renders with the document's settings, because the
  * preview has nowhere to hang a control on it.
  *
+ * Each table block also reports `key` (see tableKey), `columns`, `fitsBox`
+ * (a box could be drawn), `asList` (the text is the list, by choice or
+ * because no box fits) and `listLayout` (which list, null for a box), so an
+ * interface can offer exactly the choices left.
+ *
  * @param {string} markdownText - The Markdown input.
- * @param {Object} [options] - See DEFAULT_OPTIONS, plus `tableOverrides`.
- * @returns {{text: string, blocks: Array<{text: string, tableIndex: number|null, fitsBox: boolean}>}}
+ * @param {Object} [options] - See DEFAULT_OPTIONS, plus `tableOverrides`: an
+ *   array indexed by table position, or an object keyed by table key.
+ * @returns {{text: string, blocks: Array<{text: string, tableIndex: number|null, key: string|null, columns: number, fitsBox: boolean, asList: boolean, listLayout: string|null}>}}
  */
 function convertToBlocks(markdownText, options) {
     if (!markdownText || !markdownText.trim()) {
@@ -387,24 +437,26 @@ function convertToBlocks(markdownText, options) {
     const opts = normalizeOptions(options);
     const tokens = marked.lexer(markdownText);
     const blocks = [];
+    const seenKeys = new Map();
     let tableIndex = 0;
 
     for (const token of tokens) {
-        let rendered;
-        let index = null;
-
-        let fitsBox = false;
+        const block = { text: '', tableIndex: null, key: null, columns: 0, fitsBox: false, asList: false, listLayout: null };
 
         if (token.type === 'table') {
-            index = tableIndex++;
-            const parts = renderTableParts(token, tableOptionsFor(opts, index));
-            rendered = parts.text;
-            fitsBox = parts.fitsBox;
+            block.tableIndex = tableIndex++;
+            block.key = tableKey(token, seenKeys);
+            block.columns = token.header.length;
+            const parts = renderTableParts(token, tableOptionsFor(opts, block.tableIndex, block.key));
+            block.text = parts.text;
+            block.fitsBox = parts.fitsBox;
+            block.asList = parts.asList;
+            block.listLayout = parts.listLayout;
         } else {
-            rendered = renderToken(token, opts);
+            block.text = renderToken(token, opts);
         }
 
-        if (rendered) blocks.push({ text: rendered, tableIndex: index, fitsBox: fitsBox });
+        if (block.text) blocks.push(block);
     }
 
     // Same trim as a plain conversion, applied to the ends of the outer blocks
@@ -1096,18 +1148,18 @@ function naturalColumnWidths(header, rows) {
 }
 
 /**
- * Render a table, and say whether it got a box.
+ * Render a table, and say what it became.
  *
- * In 'ascii' the box degrades until it fits `monoWidth` — padding first, then
- * the outer border, then wrapped cells — and falls back to the list when even
- * the narrowest layout overflows. There is no way to ask for a box wider than
- * the bubble: what does not fit is a list, and `boxed` reports which happened
- * so the interface can offer the choice only where there is one. `fitsBox` is
- * about the table, not about the rendering: a table set to the list still
- * reports true when a box would have fit, or there would be no way back.
+ * In 'auto' the box degrades until it fits `monoWidth` — padding first, then
+ * the outer border, then wrapped cells — and falls back to the list only when
+ * even the longest words overflow. There is no way to ask for a box wider than
+ * the bubble. `fitsBox` is about the table, not about the rendering: a table
+ * set to the list still reports true when a box would have fit, or there
+ * would be no way back; `asList` says what was actually written, and
+ * `listLayout` which list it was (null for a box).
  * @param {Object} token - Table token
  * @param {Object} opts - Conversion options
- * @returns {{text: string, boxed: boolean}}
+ * @returns {{text: string, fitsBox: boolean, asList: boolean, listLayout: string|null}}
  */
 function renderTableParts(token, opts) {
     const header = token.header.map(tableCellText);
@@ -1116,23 +1168,26 @@ function renderTableParts(token, opts) {
     const natural = naturalColumnWidths(header, rows);
     const groups = rows.map(row => [row]);
     const wanted = opts.tableFormat !== 'list';
+    const list = (fitsBox) => {
+        const layout = resolveListLayout(token, opts.listLayout);
+        return { text: renderTableAsList(token, layout), fitsBox: fitsBox, asList: true, listLayout: layout };
+    };
 
     // Progressively degrade until the table fits the bubble
     for (const layout of generateLayouts(header.length)) {
         if (layoutWidth(natural, layout) <= opts.monoWidth) {
-            const text = wanted
-                ? fenceTable(renderTableGrid([header], groups, natural, align, layout, opts))
-                : renderTableAsList(token);
-            return { text: text, fitsBox: true };
+            if (!wanted) return list(true);
+            const text = fenceTable(renderTableGrid([header], groups, natural, align, layout, opts));
+            return { text: text, fitsBox: true, asList: false, listLayout: null };
         }
     }
 
-    // Still too wide: try wrapping cell content inside a compact layout
+    // Still too wide: wrap the cells
     const wrapped = renderTableWrapped(header, rows, natural, align, opts);
-    if (wrapped) return { text: wanted ? wrapped : renderTableAsList(token), fitsBox: true };
+    if (wrapped) return wanted ? { text: wrapped, fitsBox: true, asList: false, listLayout: null } : list(true);
 
     // Nothing fits: a list is the only honest rendering
-    return { text: renderTableAsList(token), fitsBox: false };
+    return list(false);
 }
 
 /**
@@ -1157,8 +1212,10 @@ function fenceTable(lines) {
 /**
  * Render the table grid for the given column widths and layout.
  * Rows come in GROUPS of physical lines: an unwrapped row is a group of one,
- * a wrapped row a group of as many lines as it took. The optional separator is
- * drawn between groups, never inside one.
+ * a wrapped row a group of as many lines as it took. The separator is drawn
+ * between groups, never inside one — and always, whatever the option says,
+ * once any row spans more than one line: without a rule two wrapped rows run
+ * into each other and the reader cannot tell where one ends.
  * @param {string[][]} headerGroup - Physical lines of the header row
  * @param {string[][][]} bodyGroups - One group of physical lines per body row
  * @param {number[]} colWidths
@@ -1194,6 +1251,7 @@ function renderTableGrid(headerGroup, bodyGroups, colWidths, align, layout, opts
         ? rule(chars.rl, chars.rm, chars.rr, chars.h)
         : rule('', chars.cm, '', chars.h);
 
+    const separate = opts.rowSeparator || bodyGroups.some(group => group.length > 1);
     const lines = [];
 
     if (full) lines.push(rule(chars.tl, chars.tm, chars.tr, chars.h));
@@ -1201,7 +1259,7 @@ function renderTableGrid(headerGroup, bodyGroups, colWidths, align, layout, opts
     lines.push(full ? rule(chars.ml, chars.mm, chars.mr, chars.hh) : rowRule);
 
     bodyGroups.forEach((group, i) => {
-        if (opts.rowSeparator && i > 0) lines.push(rowRule);
+        if (separate && i > 0) lines.push(rowRule);
         for (const line of group) lines.push(renderRow(line));
     });
 
@@ -1212,8 +1270,31 @@ function renderTableGrid(headerGroup, bodyGroups, colWidths, align, layout, opts
 }
 
 /**
+ * The layouts a wrapped table is tried in: the full box first, then the
+ * compact one, both fully padded. Trailing padding on the compact last column
+ * would only be invisible space, so it is never paid for.
+ * @param {number} colCount
+ * @returns {Array} layout configs
+ */
+function wrappedLayouts(colCount) {
+    const padded = () => Array(colCount).fill(true);
+    const compactRight = padded();
+    compactRight[colCount - 1] = false;
+    return [
+        { border: 'full', leftPadding: padded(), rightPadding: padded() },
+        { border: 'compact', leftPadding: padded(), rightPadding: compactRight }
+    ];
+}
+
+/**
  * Last resort before the list format: keep the table tabular by word-wrapping
- * cells into a compact layout that fits the threshold.
+ * the cells. Every column gets at least its longest single word, the remaining
+ * width is shared in proportion to what each column still wants, and the rows
+ * grow as tall as they need — a row wrapped onto ten lines is still a table,
+ * and whether it reads better as a list is the reader's call, not a constant's.
+ * Cells are aligned to the top of their row, deliberately: with the row rule
+ * between wrapped rows that is the one alignment that never leaves a short cell
+ * floating between two neighbours.
  * @param {string[]} header
  * @param {string[][]} rows
  * @param {number[]} natural
@@ -1223,11 +1304,7 @@ function renderTableGrid(headerGroup, bodyGroups, colWidths, align, layout, opts
  */
 function renderTableWrapped(header, rows, natural, align, opts) {
     const colCount = header.length;
-
-    // Threshold minus separators and padding
-    const overhead = (colCount - 1) + 2 * colCount;
-    const available = opts.monoWidth - overhead;
-    if (available < colCount) return null;
+    const sum = list => list.reduce((a, b) => a + b, 0);
 
     // Each column must at least fit its longest single word
     const minima = header.map((cell, i) => {
@@ -1238,85 +1315,73 @@ function renderTableWrapped(header, rows, natural, align, opts) {
         return Math.max(1, Math.min(min, natural[i]));
     });
 
-    const sum = list => list.reduce((a, b) => a + b, 0);
-    if (sum(minima) > available) return null;
+    for (const layout of wrappedLayouts(colCount)) {
+        // What the borders and padding cost, before any text
+        const available = opts.monoWidth - layoutWidth(natural.map(() => 0), layout);
+        if (sum(minima) > available) continue;
 
-    // Distribute the slack proportionally to how much each column still wants
-    const widths = minima.slice();
-    const want = natural.map((width, i) => Math.max(0, width - minima[i]));
-    const totalWant = sum(want);
-    let slack = available - sum(widths);
+        // Distribute the slack proportionally to how much each column still wants
+        const widths = minima.slice();
+        const want = natural.map((width, i) => Math.max(0, width - minima[i]));
+        const totalWant = sum(want);
+        let slack = available - sum(widths);
 
-    if (totalWant > 0 && slack > 0) {
-        for (let i = 0; i < colCount && slack > 0; i++) {
-            const share = Math.min(want[i], Math.floor((available - sum(minima)) * want[i] / totalWant));
-            widths[i] += share;
-        }
-        slack = available - sum(widths);
-        for (let i = 0; slack > 0 && i < colCount * 2; i++) {
-            const col = i % colCount;
-            if (widths[col] < natural[col]) {
-                widths[col] += 1;
-                slack -= 1;
+        if (totalWant > 0 && slack > 0) {
+            for (let i = 0; i < colCount && slack > 0; i++) {
+                const share = Math.min(want[i], Math.floor((available - sum(minima)) * want[i] / totalWant));
+                widths[i] += share;
+            }
+            slack = available - sum(widths);
+            for (let i = 0; slack > 0 && i < colCount * 2; i++) {
+                const col = i % colCount;
+                if (widths[col] < natural[col]) {
+                    widths[col] += 1;
+                    slack -= 1;
+                }
             }
         }
+
+        // Expand every logical row into the physical lines produced by wrapping
+        const wrapRow = (cells) => {
+            const wrappedCells = widths.map((width, i) => wrapText(cells[i] || '', width));
+            const height = Math.max(...wrappedCells.map(lines => lines.length));
+            const physical = [];
+            for (let line = 0; line < height; line++) {
+                physical.push(wrappedCells.map(lines => lines[line] || ''));
+            }
+            return physical;
+        };
+
+        return fenceTable(renderTableGrid(wrapRow(header), rows.map(wrapRow), widths, align, layout, opts));
     }
 
-    // Expand every logical row into the physical lines produced by wrapping
-    const wrapRow = (cells) => {
-        const wrappedCells = widths.map((width, i) => wrapText(cells[i] || '', width));
-        const height = Math.max(...wrappedCells.map(lines => lines.length));
-        const physical = [];
-        for (let line = 0; line < height; line++) {
-            physical.push(wrappedCells.map(lines => lines[line] || ''));
-        }
-        return physical;
-    };
-
-    const headerLines = wrapRow(header);
-    const bodyRows = rows.map(wrapRow);
-
-    // Wrapping is only worth it while the result still reads as a table: past two
-    // physical lines per row the grid is less legible than the bulleted list
-    const tallest = Math.max(headerLines.length, ...bodyRows.map(lines => lines.length), 0);
-    if (tallest > MAX_WRAPPED_LINES_PER_ROW) return null;
-
-    // The last column's right padding would only be invisible trailing space
-    const layout = {
-        border: 'compact',
-        leftPadding: header.map(() => true),
-        rightPadding: header.map((cell, i) => i < colCount - 1)
-    };
-
-    return fenceTable(renderTableGrid(headerLines, bodyRows, widths, align, layout, opts));
+    return null;
 }
 
 /**
- * Detect table type based on structure and content.
- * Returns: 'keyvalue' | 'horizontal' | 'vertical'
- *
- * Priority:
- * 1. Key-Value table: 2 columns with generic headers (Attribute/Value, etc.)
- * 2. Horizontal table: first column cells contain bold text (parameter names)
- * 3. Vertical table: standard row-based grouping
- *
- * @param {Object} token - Table token
- * @returns {string} Table type
+ * Whether a header cell is one of the given keywords, compared word by word:
+ * `Feature`, `feature name` and `Nom / Valeur` match, `Economy` (which merely
+ * contains `nom`) and `Monkey` (`key`) do not. A Latin plural matches its
+ * singular keyword.
+ * @param {string} header - Plain header text
+ * @param {string[]} keywords - Lower-case keywords
+ * @returns {boolean}
  */
-function detectTableType(token) {
-    const headers = token.header.map(cell => renderPlainText(cell.tokens).toLowerCase().trim());
+function headerMatches(header, keywords) {
+    const words = header.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    return words.some(word =>
+        keywords.includes(word)
+        || (word.endsWith('s') && keywords.includes(word.slice(0, -1)))
+        || (word.endsWith('es') && keywords.includes(word.slice(0, -2))));
+}
 
-    // Check for Key-Value table (2 columns with generic headers)
-    if (headers.length === 2) {
-        const bothGeneric = headers.every(h =>
-            KEY_VALUE_HEADERS.some(kw => h.includes(kw))
-        );
-        if (bothGeneric) {
-            return 'keyvalue';
-        }
-    }
-
-    // Check for Horizontal table (most first-column cells are bold)
+/**
+ * Whether most first-column cells are bold — the way a comparison matrix or a
+ * spec sheet marks the names of the things it lists.
+ * @param {Object} token - Table token
+ * @returns {boolean}
+ */
+function boldFirstColumn(token) {
     let boldCount = 0;
     for (const row of token.rows) {
         if (row[0] && row[0].tokens) {
@@ -1327,24 +1392,60 @@ function detectTableType(token) {
             if (hasBold) boldCount++;
         }
     }
-    if (boldCount > token.rows.length / 2) {
-        return 'horizontal';
-    }
-
-    // Default: Vertical table
-    return 'vertical';
+    return boldCount > token.rows.length / 2;
 }
 
 /**
- * Render a table as a nested list (for wide tables).
- * Automatically detects table type:
- * - Key-Value (2 cols, generic headers): each row becomes key: value
- * - Horizontal (first column bold): groups by column headers
- * - Vertical (standard): groups by rows
+ * Guess how a table reads best as a list.
+ *
+ * - `pairs`: two columns whose headers are generic (`Attribute | Value`), or
+ *   whose first column is bold — the headers add nothing, each row is a
+ *   `key: value` line.
+ * - `columns`: three or more columns where the first header is empty or names
+ *   a property (`Feature`, `Spec`…), or the first column is bold: a comparison
+ *   matrix, where the things compared are the columns and the rows their
+ *   properties, so each column becomes a group.
+ * - `rows`: everything else, one group per row — the plain reading of a table.
+ *
+ * A guess is all it is; `listLayout` overrides it.
  * @param {Object} token - Table token
+ * @returns {'pairs'|'columns'|'rows'}
+ */
+function detectTableType(token) {
+    const headers = token.header.map(cell => renderPlainText(cell.tokens).trim());
+    const bold = boldFirstColumn(token);
+
+    if (headers.length === 2) {
+        const bothGeneric = headers.every(h => headerMatches(h, KEY_VALUE_HEADERS));
+        if (bothGeneric || bold) return 'pairs';
+    }
+
+    if (headers.length >= 3) {
+        if (headers[0] === '' || headerMatches(headers[0], MATRIX_HEADERS) || bold) return 'columns';
+    }
+
+    return 'rows';
+}
+
+/**
+ * The list layout a table actually gets: the requested one, the guess when it
+ * is `auto`, and `rows` in place of `pairs` on anything but two columns.
+ * @param {Object} token - Table token
+ * @param {string} [layout] - 'auto' | 'rows' | 'columns' | 'pairs'
+ * @returns {'pairs'|'columns'|'rows'}
+ */
+function resolveListLayout(token, layout) {
+    const resolved = layout && layout !== 'auto' ? layout : detectTableType(token);
+    return resolved === 'pairs' && token.header.length !== 2 ? 'rows' : resolved;
+}
+
+/**
+ * Render a table as a nested list.
+ * @param {Object} token - Table token
+ * @param {string} [layout] - see resolveListLayout
  * @returns {string} List-formatted table
  */
-function renderTableAsList(token) {
+function renderTableAsList(token, layout) {
     const headers = token.header.map(cell => renderPlainText(cell.tokens));
 
     // A header-only table has nothing to group by: keep the headers rather than
@@ -1353,11 +1454,10 @@ function renderTableAsList(token) {
         return headers.filter(Boolean).map(header => `* *${header}*`).join('\n');
     }
 
-    const tableType = detectTableType(token);
+    const tableType = resolveListLayout(token, layout);
     const lines = [];
 
-    if (tableType === 'keyvalue') {
-        // Key-Value table: simple key: value format.
+    if (tableType === 'pairs') {
         // The key goes through renderPlainText: a bold key would otherwise nest
         // asterisks and produce `* **CPU*:* Xeon`.
         for (const row of token.rows) {
@@ -1365,8 +1465,8 @@ function renderTableAsList(token) {
             const value = renderInline(row[1].tokens);
             lines.push(`* *${key}:* ${value}`);
         }
-    } else if (tableType === 'horizontal') {
-        // Horizontal table: group by column (skip first column header)
+    } else if (tableType === 'columns') {
+        // One group per column, labelled by its header; the first column names the rows
         for (let col = 1; col < headers.length; col++) {
             const columnHeader = headers[col];
             lines.push(`* *${columnHeader}*`);
@@ -1378,7 +1478,7 @@ function renderTableAsList(token) {
             }
         }
     } else {
-        // Vertical table: group by row
+        // One group per row, labelled by the first cell; the headers label the rest
         for (const row of token.rows) {
             for (let i = 0; i < row.length; i++) {
                 const header = headers[i] || '';

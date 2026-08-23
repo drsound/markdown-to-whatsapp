@@ -56,39 +56,62 @@
             <section class="card">
                 <div class="card-head">
                     <span class="card-title" id="preview-title">Preview</span>
-                    <button type="button" class="opt-toggle head-opt" id="emoji-toggle" hidden
-                        title="Prefix each heading with an emoji marking its level">📌 heading icons</button>
                 </div>
+                <!-- Each section appears when the text contains what it governs; a
+                     control that another control makes pointless is dimmed, not
+                     removed, so the bar never reflows under the pointer -->
                 <div class="optbar" id="preview-options" hidden>
-                    <span class="optbar-title">Bubble</span>
-                    <div class="optbar-group" id="width-controls">
-                        <span class="opt-label">Width</span>
-                        <div class="numfield" title="How many monospace characters fit on one line of a WhatsApp bubble">
-                            <input type="number" id="monoWidth" value="26" min="1" max="200"
-                                aria-label="Monospace characters per line">
-                            <span class="numfield-unit">ch</span>
+                    <div class="optbar-section" id="bubble-section">
+                        <span class="optbar-title">Bubble</span>
+                        <div class="optbar-controls">
+                            <div class="optbar-group" id="width-controls">
+                                <span class="opt-label">Width</span>
+                                <div class="numfield" title="How many monospace characters fit on one line of a WhatsApp bubble">
+                                    <input type="number" id="monoWidth" value="26" min="1" max="200"
+                                        aria-label="Monospace characters per line">
+                                    <span class="numfield-unit">ch</span>
+                                </div>
+                                <button type="button" class="hint" aria-label="How to measure the width"
+                                    title="Every phone fits a different number of monospace characters on one line. Send yourself a message with a long line of code and count the characters before it wraps: about 26 on a 360 px phone.">?</button>
+                            </div>
                         </div>
                     </div>
-                    <span class="optbar-title" id="tables-title">Tables</span>
-                    <div class="optbar-group" id="style-controls">
-                        <span class="opt-label">Style</span>
-                        <div class="seg fmt-seg">
-                            <button type="button" data-fmt="ascii" class="active">ASCII</button>
-                            <button type="button" data-fmt="list">List</button>
+                    <div class="optbar-section" id="tables-section" hidden>
+                        <span class="optbar-title">Tables</span>
+                        <div class="optbar-controls">
+                            <div class="optbar-group" id="style-controls">
+                                <span class="opt-label">Style</span>
+                                <div class="seg fmt-seg">
+                                    <button type="button" data-fmt="auto" class="active"
+                                        title="Drawn table when it fits the bubble, bulleted list otherwise">Auto</button>
+                                    <button type="button" data-fmt="list" title="Always a bulleted list">List</button>
+                                </div>
+                            </div>
+                            <div class="optbar-group" id="border-controls">
+                                <span class="opt-label">Border</span>
+                                <div class="seg border-seg" id="border-seg" title="Table border characters">
+                                    <button type="button" data-border="unicode" class="active">Unicode</button>
+                                    <button type="button" data-border="ascii">Plain</button>
+                                </div>
+                            </div>
+                            <div class="optbar-group" id="rows-controls">
+                                <span class="opt-label">Separator</span>
+                                <button type="button" class="check" id="rows-toggle" aria-pressed="false"
+                                    aria-label="Draw a rule between table rows"
+                                    title="Draw a rule between table rows (always drawn when a row wraps)"><span class="check-box"></span></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="optbar-group" id="border-controls" hidden>
-                        <span class="opt-label">Border</span>
-                        <div class="seg border-seg" id="border-seg" title="Table border characters">
-                            <button type="button" data-border="unicode" class="active">Unicode</button>
-                            <button type="button" data-border="ascii">Plain</button>
+                    <div class="optbar-section" id="headings-section" hidden>
+                        <span class="optbar-title">Headings</span>
+                        <div class="optbar-controls">
+                            <div class="optbar-group" id="emoji-controls">
+                                <span class="opt-label">Emoji</span>
+                                <button type="button" class="check" id="emoji-toggle" aria-pressed="false"
+                                    aria-label="Prefix each heading with an emoji marking its level"
+                                    title="Prefix each heading with an emoji marking its level (📌 🟠 🟡 …)"><span class="check-box"></span></button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="optbar-group" id="rows-controls" hidden>
-                        <span class="opt-label">Separator</span>
-                        <button type="button" class="check" id="rows-toggle" aria-pressed="false"
-                            aria-label="Draw a rule between table rows"
-                            title="Draw a rule between table rows"><span class="check-box"></span></button>
                     </div>
                 </div>
                 <div class="chat" id="chat">

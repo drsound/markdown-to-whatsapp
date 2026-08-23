@@ -1,0 +1,6 @@
+* *Proxmox*
+* ◦ _Kernel:_ KVM
+* ◦ _License:_ AGPL v3
+* *ESXi*
+* ◦ _Kernel:_ VMkernel
+* ◦ _License:_ Proprietary

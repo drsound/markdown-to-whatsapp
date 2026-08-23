@@ -84,16 +84,29 @@ body {
     font-weight: 800; font-size: 16px; color: var(--accent); pointer-events: none;
 }
 
-/* ---- Preview options bar ---- */
+/* ---- Preview options bar ----
+   One section per kind of content (bubble, tables, headings), each shown only
+   while the text contains what it governs. A group another setting makes
+   pointless is dimmed in place rather than removed, so the bar keeps its
+   shape while the visitor clicks around it. */
 .optbar {
-    display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap;
+    display: flex; flex-direction: column; gap: 8px;
     background: var(--inset); border: 1px solid var(--line); border-radius: 14px; padding: 9px 12px;
 }
-.optbar-group { display: flex; align-items: center; gap: 8px; }
-.optbar-title { font: 800 14px 'Nunito Sans', sans-serif; color: var(--text); padding-right: 14px; border-right: 1px solid var(--line); }
+.optbar-section { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 14px; }
+.optbar-controls { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.optbar-group { display: flex; align-items: center; gap: 8px; transition: opacity 0.15s; }
+.optbar-group.is-disabled { opacity: 0.38; pointer-events: none; }
+.optbar-title { align-self: stretch; display: flex; align-items: center; font: 800 14px 'Nunito Sans', sans-serif; color: var(--text); border-right: 1px solid var(--line); }
 .opt-label { font: 800 10.5px 'Nunito Sans', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .optbar .seg { background: var(--card); }
-.card-head .head-opt { background: var(--chip); white-space: nowrap; flex: none; }
+.hint {
+    width: 20px; height: 20px; border-radius: 50%; padding: 0;
+    background: var(--card); border: 1px solid var(--line); color: var(--muted);
+    font: 800 11px 'Nunito Sans', sans-serif; cursor: help;
+    display: flex; align-items: center; justify-content: center;
+}
+.hint:hover { color: var(--text); border-color: var(--muted); }
 
 .check { background: var(--card); border: none; border-radius: 999px; padding: 5px 9px; cursor: pointer; display: flex; align-items: center; }
 .check-box {
@@ -113,9 +126,6 @@ body {
 .border-seg { padding: 3px; }
 .border-seg button { font-size: 11.5px; letter-spacing: 0.02em; padding: 5px 10px; }
 .border-seg button.active { background: var(--accent); color: var(--accentText); }
-.opt-toggle { background: var(--card); border: none; border-radius: 999px; color: var(--muted); font: 700 12px 'Nunito Sans', sans-serif; padding: 6px 13px; cursor: pointer; transition: color 0.15s, background 0.15s; }
-.opt-toggle:hover { color: var(--text); }
-.opt-toggle.active { background: var(--accent); color: var(--accentText); font-weight: 800; }
 
 .numfield { display: flex; align-items: center; gap: 4px; background: var(--card); border-radius: 999px; padding: 5px 11px; }
 .numfield-unit { font: 700 11px 'Nunito Sans', sans-serif; color: var(--muted); }
@@ -214,15 +224,11 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 
 .pv-tc-head { display: flex; align-items: center; gap: 14px; }
 .pv-tc-title { font: 800 14px 'Nunito Sans', sans-serif; color: var(--text); }
-.pv-tc-row { display: flex; align-items: center; gap: 7px; }
 .pv-tc-grid { display: grid; grid-template-columns: auto auto; align-items: center; gap: 6px 12px; }
 .pv-tc-cell { display: flex; align-items: center; gap: 7px; justify-content: flex-start; }
 .bubble .pv-table-controls .check { background: var(--chip); }
 .bubble .pv-table-controls .seg { background: var(--chip); padding: 2px; }
 .bubble .pv-table-controls .seg button { font-size: 11px; padding: 4px 10px; }
-.bubble .pv-table-controls .border-seg button { padding: 4px 9px; font-size: 11px; }
-.bubble .pv-table-controls .opt-toggle { background: var(--chip); font-size: 11px; padding: 5px 11px; }
-.bubble .pv-table-controls .opt-toggle.active { background: var(--accent); }
 .pv-tc-note { margin: 0; max-width: 30ch; font: 700 11px 'Nunito Sans', sans-serif; color: var(--muted); line-height: 1.45; }
 /* A full-width foot, so undoing an override never competes with setting one.
    Rounds itself rather than being clipped: the panel's caret and hover bridge

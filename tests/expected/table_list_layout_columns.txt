@@ -1,0 +1,12 @@
+* *Kernel*
+* ◦ _Proxmox:_ KVM
+* ◦ _ESXi:_ VMkernel
+* ◦ _Hyper-V:_ Windows
+* *License*
+* ◦ _Proxmox:_ AGPL v3
+* ◦ _ESXi:_ Proprietary
+* ◦ _Hyper-V:_ Proprietary
+* *Storage*
+* ◦ _Proxmox:_ ZFS
+* ◦ _ESXi:_ VMFS
+* ◦ _Hyper-V:_ ReFS

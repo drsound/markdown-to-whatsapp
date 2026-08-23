@@ -37,7 +37,7 @@ Headers are converted to bold text with level-specific emoji prefixes:
 * `### H3` → `*🟡 H3*`
 * And so on...
 
-The emoji prefix can be turned off in the UI ("Emoji prefix in headings"), leaving plain `*Title*`.
+The emoji prefix can be turned off in the UI (Headings · Emoji), leaving plain `*Title*`.
 
 ### Lists
 * **Unordered lists:** Uses `*` prefix with `◦` for nested levels
@@ -60,11 +60,11 @@ tables degrade to stay under it, and the preview draws every code block exactly 
 where the recipient's WhatsApp will wrap.
 
 ### Tables
-The converter supports **two strategies** for table rendering, chosen in the UI for the whole
-document or for one table at a time:
+A table is rendered in one of **two styles**, chosen in the UI for the whole document or for one
+table at a time:
 
-1. **Table box**
-   A drawn table inside a monospace block, as wide as it needs and never wider than the bubble.
+1. **Auto** (default): a drawn table inside a monospace block, as wide as it needs and never
+   wider than the bubble — and the bulleted list when no box can be drawn at all.
    ```
    ┌────────┬─────────────┐
    │ Name   │ Description │
@@ -73,37 +73,46 @@ document or for one table at a time:
    └────────┴─────────────┘
    ```
 
-2. **Bulleted List**
-   Converts the table into a nested list. The converter **automatically detects** the table orientation:
+2. **List**: always the bulleted list.
 
-   * **Key-Value tables** (2 columns with generic headers like "Attribute/Value"):
-     ```
-     * *CPU:* Intel Xeon
-     * *RAM:* 64 GB
-     * *Storage:* 1 TB SSD
-     ```
-   
-   * **Horizontal tables** (first column cells are bold = parameters):
-     ```
-     * *Proxmox*
-     * ◦ _Kernel:_ KVM
-     * ◦ _License:_ AGPL v3
-     * *ESXi*
-     * ◦ _Kernel:_ VMkernel
-     * ◦ _License:_ Proprietary
-     ```
-   
-   * **Vertical tables** (standard row-based, 3+ columns):
-     ```
-     * *Product:* Laptop
-     * ◦ _Price:_ $999
-     * ◦ _Stock:_ 50
-     * *Product:* Smartphone
-     * ◦ _Price:_ $599
-     * ◦ _Stock:_ 100
-     ```
-   
-   Key-Value detection supports **11 languages**: English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and Indonesian.
+**How the list is laid out**
+
+A list can group the cells in three ways. The converter **guesses** from the headers and the
+bold cells, and the guess can be overridden per table (Layout: Auto · Rows · Columns · Pairs):
+
+* **Pairs** — 2 columns with generic headers ("Attribute/Value", "Key/Value"…) or a bold
+  first column: the headers add nothing, each row is a `key: value` line.
+  ```
+  * *CPU:* Intel Xeon
+  * *RAM:* 64 GB
+  * *Storage:* 1 TB SSD
+  ```
+
+* **Columns** — 3+ columns whose first header is empty or names a property ("Feature",
+  "Spec", "Parameter"…), or whose first column is bold: a comparison matrix, where the things
+  compared are the columns, so each column becomes a group.
+  ```
+  * *Proxmox*
+  * ◦ _Kernel:_ KVM
+  * ◦ _License:_ AGPL v3
+  * *ESXi*
+  * ◦ _Kernel:_ VMkernel
+  * ◦ _License:_ Proprietary
+  ```
+
+* **Rows** — everything else: one group per row, labelled by its first cell.
+  ```
+  * *Product:* Laptop
+  * ◦ _Price:_ $999
+  * ◦ _Stock:_ 50
+  * *Product:* Smartphone
+  * ◦ _Price:_ $599
+  * ◦ _Stock:_ 100
+  ```
+
+Headers are matched word by word ("Economy" does not count as "nom") in **11 languages**:
+English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and
+Indonesian. Pairs need exactly two columns; asked for on a wider table, it reads as Rows.
 
 **How the box degrades**
 
@@ -117,13 +126,26 @@ nothing does. There is no way to ask for a table wider than the bubble.
    ──────┼────────────┼──────
     A    │BBBBBBBBBBBB│C
    ```
-3. **Wrapped compact** style: each column gets at least its longest word, the remaining width is
-   shared proportionally and cells are word-wrapped — only while a row still fits two physical
-   lines, past which the list reads better.
-4. **Bulleted List**, when not even the longest words fit.
+3. **Wrapped** box, full borders first and then compact: each column gets at least its longest
+   word, the remaining width is shared proportionally and cells are word-wrapped. Rows grow as
+   tall as they need — there is no limit — and a rule is always drawn between them, since two
+   wrapped rows without one run into each other. Cells align to the top of their row.
+   ```
+   ┌─────────┬──────────────┐
+   │ Feature │ Notes here   │
+   ╞═════════╪══════════════╡
+   │ Alpha   │ short note   │
+   ├─────────┼──────────────┤
+   │ Beta    │ a slightly   │
+   │         │ longer note  │
+   └─────────┴──────────────┘
+   ```
+4. **Bulleted List**, when not even the longest words fit (a long URL, five columns at 26
+   characters…).
 
-A table that cannot fit any box says so in its own panel instead of offering a choice that would
-change nothing.
+Whether a tall wrapped box reads better than the list is a judgement the preview lets you make:
+that table's own panel switches it to List. A table that cannot fit any box says so in its panel
+and offers the list layout instead of a style that could not change anything.
 
 **Additional table behaviour**
 * Column widths are measured in display cells, so emoji and CJK text stay aligned (`✅`, `日本語` count as two columns).
@@ -131,14 +153,16 @@ change nothing.
 * Header-only tables render without an empty body or a doubled border.
 * `<br>` inside a cell becomes a space, and an escaped `\|` becomes `∣` so it cannot fake an extra column.
 * **Border style** defaults to Unicode box drawing (`┌───┐`); ASCII (`+---+`) can be chosen in the UI. It is a document-wide choice, not a per-table one.
-* **Row separator** (default off) draws a rule between body rows, in every boxed and compact style.
-* The **style** and the **row separator** can be set **per table**: hovering a table in the
-  preview reveals its own controls, which start from the document default and override it for
-  that table only. The width is not among them — there is one bubble, and it is the same for
-  every table. A
-  table carrying its own settings keeps a small dot, since the controls at the top of the
-  panel deliberately leave it alone — its "default" button hands it back to them. A table
-  nested inside a list item or a blockquote always follows the document default.
+* **Row separator** (default off) draws a rule between body rows, in every boxed and compact style;
+  a wrapped table draws it regardless.
+* The **style**, the **row separator** and the **list layout** can be set **per table**: hovering
+  a table in the preview reveals its own controls, which start from the document default and
+  override it for that table only, showing only the ones that still apply (the separator on a
+  box, the layout on a list). The width is not among them — there is one bubble, and it is the
+  same for every table. A table carrying its own settings keeps a dashed mark, since the controls
+  at the top of the panel deliberately leave it alone — its "reset" button hands it back to them.
+  Overrides follow the table by its header text, so adding or removing a table above does not
+  move them. A table nested inside a list item or a blockquote always follows the document default.
 
 ### Code blocks
 Fenced and indented blocks reach WhatsApp verbatim: the converter never re-wraps or re-indents
@@ -170,14 +194,16 @@ mid-word, and a chat bubble has no horizontal scroll — so the preview reproduc
 
 The interface follows the **operating system's light or dark theme**; the header toggle
 overrides it and that choice is remembered.
-Conversion options appear only when they apply — the table controls when the text contains a
-table, the heading-emoji toggle when it contains a heading, the width limit in Auto, the
-border style in ASCII table mode, the row separator outside List mode — and are stored in
+The options bar has one section per kind of content, each shown only while the text contains
+it: **Bubble** (the width, when there is a table or a code block), **Tables** (style, border,
+separator) and **Headings** (the emoji prefix). A control that another setting makes pointless
+— the border and the separator in List style, the width with nothing monospace to draw — is
+dimmed in place rather than removed, so the bar keeps its shape. The options are stored in
 `localStorage` along with the theme. Per-table choices are not stored: they belong to the
 text being converted.
 
-Hovering a table in the preview reveals the same controls for that table alone, and a table
-with settings of its own is marked with a dot.
+Hovering a table in the preview reveals its own controls, and a table with settings of its own
+is marked with a dashed line.
 
 ## Development
 
@@ -205,19 +231,21 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
   — the same conversion with the top-level blocks kept apart and each one tagged with the
   table it came from, which is what per-table options are built on — and the
   `mdContainsTable` / `mdContainsHeading` / `mdContainsCode` queries the UI uses to show an
-  option only when it applies. Each block of `convertToBlocks` also reports `fitsBox`, so the
-  interface can offer a table its style only where a box is possible.
+  option only when it applies. Each table block of `convertToBlocks` also reports its `key`,
+  `columns`, `fitsBox` (a box is possible), `asList` (what was written) and `listLayout`, so the
+  interface can offer exactly the choices left.
 * `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
 
-Options are `tableFormat` (`ascii` | `list`), `monoWidth`, `borderStyle` (`unicode` | `ascii`),
-`rowSeparator`, `headingEmojis`, and `tableOverrides` — an array indexed by the table's position
-in the document, each entry overriding any of the others for that table alone.
+Options are `tableFormat` (`auto` | `list`), `monoWidth`, `borderStyle` (`unicode` | `ascii`),
+`rowSeparator`, `headingEmojis`, `listLayout` (`auto` | `rows` | `columns` | `pairs`), and
+`tableOverrides` — either an array indexed by the table's position in the document or an object
+keyed by the table's `key` (its header texts joined with `|`, plus `#2`, `#3`… for repeated
+headers), each entry overriding any of the others for that table alone.
 
-The older names are still accepted on input: `tableThreshold` for `monoWidth`, and `auto` / `always`
-for `tableFormat`. `auto` is what `ascii` means now; the old `ascii`, which drew a box at any width,
-has no equivalent and maps to the degrading one. When both the old and the new name are given, the
-new one wins and the old is dropped.
+The older names are still accepted on input: `tableThreshold` for `monoWidth`, and `ascii` /
+`always` for `tableFormat` (`ascii` never drew a box wider than the bubble, so it maps to `auto`).
+When both the old and the new name are given, the new one wins and the old is dropped.
 
 The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in both
 `docs/index.html` (with an SRI hash) and `tests/package.json`, so the page and the tests

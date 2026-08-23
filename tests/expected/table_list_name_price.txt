@@ -1,0 +1,6 @@
+* *Name:* Laptop
+* ◦ _Price:_ $999
+* ◦ _Stock:_ 50
+* *Name:* Phone
+* ◦ _Price:_ $599
+* ◦ _Stock:_ 100

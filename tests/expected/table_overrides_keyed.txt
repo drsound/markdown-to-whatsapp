@@ -1,0 +1,19 @@
+```
+┌─────────┬────────┐
+│ Env     │ Status │
+╞═════════╪════════╡
+│ Staging │ Live   │
+├─────────┼────────┤
+│ Prod    │ Friday │
+└─────────┴────────┘
+```
+
+Same header again.
+
+* *Env:* Dev
+* ◦ _Status:_ Broken
+* *Env:* QA
+* ◦ _Status:_ Green
+
+* *CPU:* Xeon
+* *RAM:* 256 GB

@@ -1,6 +1,6 @@
-// UI logic for the redesigned interface.
-// Conversion logic lives in converter.js (convertTextToWhatsapp, mdContainsTable,
-// mdContainsHeading); this file never formats Markdown itself.
+// UI logic for the page.
+// Conversion logic lives in converter.js (convertToBlocks, mdContainsTable,
+// mdContainsHeading, mdContainsCode); this file never formats Markdown itself.
 (function () {
     const input = document.getElementById('markdown-input');
     const bubbleContent = document.getElementById('bubble-content');
@@ -22,19 +22,29 @@
     const borderSeg = document.getElementById('border-seg');
     const borderControls = document.getElementById('border-controls');
     const widthControls = document.getElementById('width-controls');
-    const tablesTitle = document.getElementById('tables-title');
-    const styleControls = document.getElementById('style-controls');
+    const bubbleSection = document.getElementById('bubble-section');
+    const tablesSection = document.getElementById('tables-section');
+    const headingsSection = document.getElementById('headings-section');
     const rowsControls = document.getElementById('rows-controls');
     const rowsToggle = document.getElementById('rows-toggle');
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
+    // The document options the bar edits. `listLayout` is deliberately not
+    // among them: which way a table reads as a list is a property of that
+    // table, so it only exists as a per-table override.
     const options = Object.assign({}, DEFAULT_OPTIONS);
-    // Per-table overrides, keyed by the table's position in the document. Not
+    // Per-table overrides, keyed by the table's header (see tableKey in the
+    // converter) so they stay on their table when one is added above. Not
     // persisted: they belong to the text being converted, not to the user.
-    const tableOverrides = [];
+    const tableOverrides = Object.create(null);
     let showRaw = false;
     let isCopying = false;
+
+    function setCheck(button, on) {
+        button.classList.toggle('active', on);
+        button.setAttribute('aria-pressed', String(on));
+    }
 
     // ---- Options ----
     function loadOptions() {
@@ -55,11 +65,12 @@
         }
         const width = parseInt(options.monoWidth, 10);
         options.monoWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_OPTIONS.monoWidth;
+        if (options.tableFormat !== 'list') options.tableFormat = 'auto';
+        options.listLayout = DEFAULT_OPTIONS.listLayout;
 
         widthInput.value = String(options.monoWidth);
-        emojiToggle.classList.toggle('active', options.headingEmojis);
-        rowsToggle.classList.toggle('active', options.rowSeparator);
-        rowsToggle.setAttribute('aria-pressed', String(options.rowSeparator));
+        setCheck(emojiToggle, options.headingEmojis);
+        setCheck(rowsToggle, options.rowSeparator);
         document.querySelectorAll('.fmt-seg button').forEach(b =>
             b.classList.toggle('active', b.dataset.fmt === options.tableFormat));
         borderSeg.querySelectorAll('button').forEach(b =>
@@ -68,6 +79,14 @@
 
     function storeOptions() {
         try { localStorage.setItem(OPTIONS_KEY, JSON.stringify(options)); } catch (e) { }
+    }
+
+    // A group that another setting makes pointless stays where it is, dimmed,
+    // so the bar keeps its shape while the visitor clicks around it
+    function setEnabled(group, enabled) {
+        group.classList.toggle('is-disabled', !enabled);
+        group.setAttribute('aria-disabled', String(!enabled));
+        group.querySelectorAll('button, input').forEach(el => { el.disabled = !enabled; });
     }
 
     // ---- Theme ----
@@ -161,45 +180,73 @@
         return '<span class="opt-label">' + label + '</span><div class="pv-tc-cell">' + control + '</div>';
     }
 
-    function seg(name, index, current, entries, extraClass) {
-        return '<div class="seg' + (extraClass ? ' ' + extraClass : '') + '">' + entries.map(([value, label]) =>
-            '<button type="button" data-table="' + index + '" data-opt="' + name + '" data-value="' + value + '"'
+    function attr(value) {
+        return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    function seg(name, key, current, entries) {
+        return '<div class="seg">' + entries.map(([value, label, title]) =>
+            '<button type="button" data-key="' + attr(key) + '" data-opt="' + name + '" data-value="' + value + '"'
+            + (title ? ' title="' + attr(title) + '"' : '')
             + (value === current ? ' class="active"' : '') + '>' + label + '</button>').join('') + '</div>';
     }
 
+    function check(name, key, on, title) {
+        return '<button type="button" class="check' + (on ? ' active' : '') + '"'
+            + ' data-key="' + attr(key) + '" data-opt="' + name + '" data-value="toggle"'
+            + ' aria-pressed="' + (on ? 'true' : 'false') + '"'
+            + ' aria-label="' + attr(title) + '" title="' + attr(title) + '"><span class="check-box"></span></button>';
+    }
+
+    const LAYOUT_LABELS = { rows: 'Rows', columns: 'Columns', pairs: 'Pairs' };
+
     // The panel shows the options this table actually renders with, whether they
-    // come from the document defaults or from its own override.
-    function tableControlsHTML(index, fitsBox) {
-        const own = tableOverrides[index] || {};
+    // come from the document defaults or from its own override, and only the
+    // ones that can still change something: Style where a box is possible,
+    // Separator on a box, Layout on a list.
+    function tableControlsHTML(block) {
+        const key = block.key;
+        const own = tableOverrides[key] || {};
         const eff = Object.assign({}, options, own);
         const custom = Object.keys(own).length > 0;
 
         const head = '<div class="pv-tc-head"><span class="pv-tc-title">This table</span></div>';
-        let reset = '';
-        let body;
+        const rows = [];
 
-        if (!fitsBox) {
-            // No layout of this table fits the bubble, so there is nothing to choose:
-            // say why instead of showing a control that cannot change anything
-            body = '<p class="pv-tc-note">Too wide for a box at ' + options.monoWidth
-                + ' ch, so it reads as a list.</p>';
+        if (block.fitsBox) {
+            rows.push(row('Style', seg('tableFormat', key, eff.tableFormat, [
+                ['auto', 'Auto', 'Drawn table when it fits the bubble, bulleted list otherwise'],
+                ['list', 'List', 'Always a bulleted list']
+            ])));
+        }
+
+        if (!block.asList) {
+            rows.push(row('Separator', check('rowSeparator', key, eff.rowSeparator,
+                'Draw a rule between table rows (always drawn when a row wraps)')));
         } else {
-            const rows = [row('Style', seg('tableFormat', index, eff.tableFormat, [['ascii', 'ASCII'], ['list', 'List']]))];
-
-            if (eff.tableFormat !== 'list') {
-                rows.push(row('Separator', '<button type="button" class="check' + (eff.rowSeparator ? ' active' : '') + '"'
-                    + ' data-table="' + index + '" data-opt="rowSeparator" data-value="toggle"'
-                    + ' aria-pressed="' + (eff.rowSeparator ? 'true' : 'false') + '"'
-                    + ' aria-label="Draw a rule between table rows"'
-                    + ' title="Draw a rule between table rows"><span class="check-box"></span></button>'));
-            }
-            body = '<div class="pv-tc-grid">' + rows.join('') + '</div>';
+            const guessed = LAYOUT_LABELS[block.listLayout] || '';
+            const entries = [
+                ['auto', 'Auto', guessed ? 'Guess from the headers — here: ' + guessed : 'Guess from the headers'],
+                ['rows', 'Rows', 'One group per row, labelled by its first cell'],
+                ['columns', 'Columns', 'One group per column, labelled by its header']
+            ];
+            // Pairs need a key and a value, nothing else: two columns exactly
+            if (block.columns === 2) entries.push(['pairs', 'Pairs', 'Bare key: value lines, headers dropped']);
+            rows.push(row('Layout', seg('listLayout', key, eff.listLayout, entries)));
         }
 
-        if (custom) {
-            reset = '<button type="button" class="pv-reset" data-table="' + index + '" data-opt="reset"'
-                + ' title="Follow the document default again">reset to default</button>';
+        let body = '<div class="pv-tc-grid">' + rows.join('') + '</div>';
+        if (!block.fitsBox) {
+            // No box of this table fits the bubble: say why instead of offering a
+            // style that could not change anything
+            body = '<p class="pv-tc-note">No box fits ' + options.monoWidth
+                + ' ch, so it reads as a list.</p>' + body;
         }
+
+        const reset = custom
+            ? '<button type="button" class="pv-reset" data-key="' + attr(key) + '" data-opt="reset"'
+                + ' title="Follow the document default again">reset to default</button>'
+            : '';
 
         return '<div class="pv-table-controls"><div class="pv-tc-body">' + head
             + body + '</div>' + reset + '</div>';
@@ -212,10 +259,10 @@
             if (block.tableIndex === null) return gap + body;
             // A table with settings of its own carries an accent stripe even when
             // unhovered: otherwise the header controls look broken when they skip it
-            const own = tableOverrides[block.tableIndex];
+            const own = tableOverrides[block.key];
             const overridden = own && Object.keys(own).length ? ' is-overridden' : '';
-            return gap + '<div class="pv-table' + overridden + '" data-table="' + block.tableIndex + '">'
-                + tableControlsHTML(block.tableIndex, block.fitsBox) + body + '</div>';
+            return gap + '<div class="pv-table' + overridden + '" data-key="' + attr(block.key) + '">'
+                + tableControlsHTML(block) + body + '</div>';
         }).join('');
     }
 
@@ -239,20 +286,23 @@
         copyButton.disabled = !hasContent;
         shareLink.classList.toggle('disabled', !hasContent);
         shareLink.href = hasContent ? 'https://wa.me/?text=' + encodeURIComponent(converted) : '#';
-        // The bar answers to three independent facts, not to one another
+        // Sections come and go with the content; within a section, a control
+        // that the current settings make pointless is dimmed in place
         const hasTable = mdContainsTable(input.value);
         const hasCode = mdContainsCode(input.value);
+        const hasHeading = mdContainsHeading(input.value);
         const isList = options.tableFormat === 'list';
 
-        optbar.hidden = !(hasTable || hasCode);
-        // In list mode a table draws no monospace at all: with no code block
-        // around either, the width would be a knob connected to nothing
-        widthControls.hidden = optbar.hidden || (!hasCode && isList);
-        tablesTitle.hidden = !hasTable;
-        styleControls.hidden = !hasTable;
-        borderControls.hidden = !hasTable || isList;
-        rowsControls.hidden = !hasTable || isList;
-        emojiToggle.hidden = !mdContainsHeading(input.value);
+        optbar.hidden = !(hasTable || hasCode || hasHeading);
+        // The width governs everything monospace: code blocks and boxed tables.
+        // In list mode a table draws no monospace at all, so with no code block
+        // around either the knob is connected to nothing
+        bubbleSection.hidden = !(hasTable || hasCode);
+        setEnabled(widthControls, hasCode || !isList);
+        tablesSection.hidden = !hasTable;
+        setEnabled(borderControls, !isList);
+        setEnabled(rowsControls, !isList);
+        headingsSection.hidden = !hasHeading;
 
         // The preview draws every monospace block at the real bubble width
         bubbleContent.style.setProperty('--mono-cols', String(options.monoWidth));
@@ -300,14 +350,18 @@
     });
     rowsToggle.addEventListener('click', () => {
         options.rowSeparator = !options.rowSeparator;
-        rowsToggle.classList.toggle('active', options.rowSeparator);
-        rowsToggle.setAttribute('aria-pressed', String(options.rowSeparator));
+        setCheck(rowsToggle, options.rowSeparator);
+        update();
+    });
+    emojiToggle.addEventListener('click', () => {
+        options.headingEmojis = !options.headingEmojis;
+        setCheck(emojiToggle, options.headingEmojis);
         update();
     });
 
     // ---- Per-table overrides ----
-    function setOverride(index, patch) {
-        tableOverrides[index] = Object.assign({}, tableOverrides[index] || {}, patch);
+    function setOverride(key, patch) {
+        tableOverrides[key] = Object.assign({}, tableOverrides[key] || {}, patch);
         render();
     }
 
@@ -333,25 +387,19 @@
     bubbleContent.addEventListener('click', (event) => {
         const control = event.target.closest('[data-opt]');
         if (!control) return;
-        const index = Number(control.dataset.table);
+        const key = control.dataset.key;
         const opt = control.dataset.opt;
 
         if (opt === 'reset') {
-            delete tableOverrides[index];
+            delete tableOverrides[key];
             render();
         } else if (opt === 'rowSeparator') {
-            const own = tableOverrides[index] || {};
+            const own = tableOverrides[key] || {};
             const current = 'rowSeparator' in own ? own.rowSeparator : options.rowSeparator;
-            setOverride(index, { rowSeparator: !current });
+            setOverride(key, { rowSeparator: !current });
         } else if (control.dataset.value) {
-            setOverride(index, { [opt]: control.dataset.value });
+            setOverride(key, { [opt]: control.dataset.value });
         }
-    });
-
-    emojiToggle.addEventListener('click', () => {
-        options.headingEmojis = !options.headingEmojis;
-        emojiToggle.classList.toggle('active', options.headingEmojis);
-        update();
     });
     rawToggle.addEventListener('click', () => { showRaw = !showRaw; render(); });
 
