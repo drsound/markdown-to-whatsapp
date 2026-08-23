@@ -5,7 +5,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  contents: write        # what lets the run create the GitHub Release for the tag
   id-token: write        # what lets npm authenticate this run over OIDC
 
 jobs:
@@ -22,3 +22,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm publish --provenance --access public
+      # the tag alone does not show up under Releases, so the repo page kept
+      # advertising an older version than npm; create the release here too
+      - run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
