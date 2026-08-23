@@ -19,6 +19,7 @@ body.light {
 }
 
 * { box-sizing: border-box; }
+.sprite { display: none; }
 
 [hidden] { display: none !important; }
 
@@ -254,16 +255,13 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 #copy-button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 #copy-button.copied { background: var(--chip); color: var(--text); box-shadow: none; }
 .share {
-    flex: 1; display: flex; align-items: center; justify-content: center;
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
     background: var(--chip); color: var(--text); text-decoration: none; white-space: nowrap;
     font: 800 14px 'Nunito Sans', sans-serif; padding: 14px; border-radius: 16px;
 }
 .share.disabled { opacity: 0.45; pointer-events: none; color: var(--muted); }
 
 /* ---- Footer ---- */
-.footer { text-align: center; margin-top: 20px; font-size: 13px; color: var(--muted); }
-.footer a { color: var(--muted); }
-.footer a:hover { color: var(--text); }
 
 @keyframes pulse-green {
     0% { box-shadow: 0 0 0 0 rgba(45, 212, 127, 0.7); }
@@ -271,3 +269,15 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
     100% { box-shadow: 0 0 0 0 rgba(45, 212, 127, 0); }
 }
 .copy-pulse { animation: pulse-green 0.5s; }
+
+/* ---- Viewport-height layout ----
+   In two-column mode the page fills the viewport and the chat scrolls inside
+   its card: letting it grow instead pushed Copy/Share a few screens down.
+   The min-height floors below are what the cards shrink from, so they have to
+   go, and flex/grid items need min-height:0 before they will shrink at all.
+   Below the breakpoint the columns stack and the page scrolls as before. */
+@media (min-width: 901px) {
+    .page { height: 100vh; }
+    .grid, .card { min-height: 0; }
+    .chat, #markdown-input { min-height: 0; }
+}
