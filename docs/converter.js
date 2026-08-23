@@ -1,9 +1,12 @@
 // =================================================================================================
-// Markdown → WhatsApp converter (pure: no DOM access, no globals except `marked`).
+// Markdown → WhatsApp converter: a pure ES module, no DOM, options passed in.
 //
-// Loaded both by the browser page (as a plain <script>, exposing the global
-// `convertTextToWhatsapp`) and by the Node test suite (via `require`).
+// One file, three callers: the web page imports it (with `marked` resolved
+// through an import map to docs/vendor/), the npm package exports it as its
+// entry point, and the CLI and MCP server in bin/ build on it.
 // =================================================================================================
+
+import { marked } from 'marked';
 
 // =================================================================================================
 // CONSTANTS
@@ -1547,17 +1550,15 @@ function mdContainsCode(markdownText) {
 // EXPORTS
 // =================================================================================================
 
-// CommonJS for the Node test suite; the browser picks up the global function.
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        convertTextToWhatsapp,
-        convertToBlocks,
-        mdContainsTable,
-        mdContainsHeading,
-        mdContainsCode,
-        DEFAULT_OPTIONS,
-        displayWidth,
-        decodeEntities,
-        wrapText
-    };
-}
+export {
+    convertTextToWhatsapp,
+    convertToBlocks,
+    mdContainsTable,
+    mdContainsHeading,
+    mdContainsCode,
+    DEFAULT_OPTIONS,
+    FORMAT_ALIASES,
+    displayWidth,
+    decodeEntities,
+    wrapText
+};

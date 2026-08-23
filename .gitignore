@@ -16,9 +16,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Test artifacts
-tests/node_modules/
-
 # Build (if any)
 dist/
 build/

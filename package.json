@@ -1,0 +1,41 @@
+{
+  "name": "markdown-to-whatsapp",
+  "version": "1.0.0",
+  "description": "Convert Markdown into WhatsApp formatting — tables drawn to fit the phone's monospace width. Library, CLI and MCP server.",
+  "keywords": ["whatsapp", "markdown", "converter", "formatting", "tables", "cli", "mcp", "mcp-server", "agents"],
+  "license": "MIT",
+  "author": "Alessandro Zarrilli",
+  "homepage": "https://drsound.github.io/markdown-to-whatsapp/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drsound/markdown-to-whatsapp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/drsound/markdown-to-whatsapp/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./docs/converter.js"
+  },
+  "bin": {
+    "markdown-to-whatsapp": "./bin/markdown-to-whatsapp.js"
+  },
+  "files": [
+    "docs/converter.js",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node tests/test.js",
+    "vendor": "node scripts/vendor.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "marked": "18.0.10",
+    "zod": "^4.0.0"
+  }
+}

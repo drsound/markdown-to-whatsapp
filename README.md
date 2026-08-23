@@ -3,9 +3,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Status: Active](https://img.shields.io/badge/status-active-success.svg)](https://github.com/drsound/markdown-to-whatsapp)
 
-A client-side web utility to convert standard Markdown into WhatsApp's formatting syntax.
+Convert standard Markdown into WhatsApp's formatting syntax — as a web page, an npm library, a
+command line tool or an MCP server for agents.
 
-**[➡️ Go to the Live Tool](https://drsound.github.io/markdown-to-whatsapp/)**
+**[➡️ Go to the Live Tool](https://drsound.github.io/markdown-to-whatsapp/)** · `npm i markdown-to-whatsapp` · `npx markdown-to-whatsapp mcp`
 
 [![Screenshot of the app](./assets/screenshot.png)](https://drsound.github.io/markdown-to-whatsapp/)
 
@@ -17,7 +18,9 @@ WhatsApp uses a non-standard syntax for text formatting (e.g., `*bold*`, `_itali
 
 This tool provides a simple way to convert text from Markdown sources (like text editors, Google Docs, etc.) into the format that WhatsApp expects, saving the need for manual correction.
 
-The entire conversion process runs locally in your browser using JavaScript. **No data is ever sent to a server.**
+The entire conversion process runs locally in your browser using JavaScript, and the parser ships
+with the page. **No data is ever sent to a server** — the only request that leaves the page is
+for the font.
 
 ## Supported Conversions
 
@@ -213,14 +216,79 @@ text being converted.
 Hovering a table in the preview reveals its own controls, and a table with settings of its own
 is marked with a dashed line.
 
+## Use it from code, the shell or an agent
+
+The same converter is published on npm as **`markdown-to-whatsapp`** (Node 20 or newer). The
+options are the ones described above, with the same names and defaults.
+
+### Library
+
+```bash
+npm install markdown-to-whatsapp
+```
+
+```js
+import { convertTextToWhatsapp, convertToBlocks } from 'markdown-to-whatsapp';
+
+convertTextToWhatsapp('# Hi **there**');
+// → '*📌 Hi there*'
+
+convertTextToWhatsapp(markdown, { monoWidth: 30, tableFormat: 'auto', headingEmojis: false });
+
+// The same conversion with the blocks kept apart: each has the source `line` it starts on,
+// and each table its `key`, `columns`, `fitsBox`, `asList` and `listLayout`
+const { text, blocks } = convertToBlocks(markdown, { monoWidth: 30 });
+```
+
+### Command line
+
+```bash
+npx markdown-to-whatsapp notes.md                  # a file…
+cat notes.md | npx markdown-to-whatsapp            # …or stdin
+npx markdown-to-whatsapp notes.md --width 32 --tables list --no-emoji
+npx markdown-to-whatsapp notes.md --json           # the blocks, for scripting
+npx markdown-to-whatsapp --help
+```
+
+`--width` (10–80), `--tables auto|list`, `--layout auto|rows|columns|pairs`, `--separator`,
+`--no-emoji`, `--json`. Output goes to stdout; a bad option says why on stderr and exits 2.
+
+### MCP server
+
+The package runs as a [Model Context Protocol](https://modelcontextprotocol.io) server over
+stdio, so an agent can convert text itself — which matters for tables: counting columns against
+a 26-character bubble is what a model gets wrong and this tool gets right.
+
+```bash
+claude mcp add markdown-to-whatsapp -- npx -y markdown-to-whatsapp mcp
+```
+
+or, for Claude Desktop and other clients that take a JSON configuration:
+
+```json
+{
+  "mcpServers": {
+    "markdown-to-whatsapp": {
+      "command": "npx",
+      "args": ["-y", "markdown-to-whatsapp", "mcp"]
+    }
+  }
+}
+```
+
+It exposes one tool, **`convert_markdown_to_whatsapp`**, taking `markdown` plus the optional
+`monoWidth`, `tableFormat`, `listLayout`, `rowSeparator` and `headingEmojis`. The text comes back
+as the tool's content, and the structured result carries it as `text` together with `tables`:
+one entry per table with `key`, `columns`, `fitsBox`, `asList` and `listLayout`, so the agent
+can tell which tables became a box and which a list. The tool is read-only and idempotent.
+
 ## Development
 
 ### Running Tests
 
-Node 18 or newer:
+Node 20 or newer, from the repository root:
 
 ```bash
-cd tests
 npm install
 npm test
 ```
@@ -230,12 +298,16 @@ The test suite uses file-based testing:
 * `tests/inputs/*.json` - optional per-fixture converter options (e.g. `{ "monoWidth": 40 }`)
 * `tests/expected/*.txt` - Expected WhatsApp output
 
+plus a few invariants: the vendored parser matches the installed one, `convertToBlocks` reports
+the right source lines, the package entry is the page script.
+
 Tests also run in CI on every push and pull request (`.github/workflows/test.yml`).
 
 ### Project Structure
 
-* `docs/converter.js` - the converter itself: pure, DOM-free, options passed as a parameter.
-  It exposes `convertTextToWhatsapp(markdown, options)`, `convertToBlocks(markdown, options)`
+* `docs/converter.js` - the converter itself: a pure ES module, DOM-free, options passed as a
+  parameter. It is both the script the page imports and the entry point of the npm package
+  (`exports["."]`), so there is one copy and no build step. It exposes `convertTextToWhatsapp(markdown, options)`, `convertToBlocks(markdown, options)`
   — the same conversion with the top-level blocks kept apart and each one tagged with the
   table it came from, which is what per-table options are built on — and the
   `mdContainsTable` / `mdContainsHeading` / `mdContainsCode` queries the UI uses to show an
@@ -245,6 +317,11 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
   so the interface can offer exactly the choices left.
 * `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, scroll sync between the panels, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
+* `docs/vendor/` - the ES build of [marked](https://github.com/markedjs/marked), copied from
+  `node_modules` by `npm run vendor`; the page's import map resolves `marked` to it
+* `bin/markdown-to-whatsapp.js` - the command line tool; `bin/mcp.js` - the MCP server it
+  starts on `mcp`, loaded only then so converting a file never loads the protocol SDK
+* `tests/` - the fixtures and the runner
 
 Options are `tableFormat` (`auto` | `list`), `monoWidth`, `rowSeparator`, `headingEmojis`,
 `listLayout` (`auto` | `rows` | `columns` | `pairs`), and `tableOverrides` — either an array
@@ -257,9 +334,18 @@ The older names are still accepted on input: `tableThreshold` for `monoWidth`, a
 When both the old and the new name are given, the new one wins and the old is dropped.
 `borderStyle`, which used to choose Unicode box drawing, is accepted and ignored.
 
-The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in both
-`docs/index.html` (with an SRI hash) and `tests/package.json`, so the page and the tests
-always parse Markdown the same way.
+The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in
+`package.json`, and the copy the page loads from `docs/vendor/` is checked against it by the
+test suite, so the page, the package and the tests always parse Markdown the same way. To bump
+it: change the pin, `npm install`, `npm run vendor`, `npm test`.
+
+### Publishing
+
+```bash
+npm test
+npm pack --dry-run   # docs/converter.js, bin/, README, LICENSE — nothing else
+npm publish
+```
 
 ### Local Development
 
