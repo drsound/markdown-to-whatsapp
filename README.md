@@ -53,7 +53,7 @@ The emoji prefix can be turned off in the UI (Headings · Emoji), leaving plain 
 ### Bubble width
 A WhatsApp bubble fits a fixed number of monospace characters on one line — about **26** on a
 360 px phone, which is the default. Measure yours by sending yourself a code block and counting
-where it breaks, then set `monoWidth` to that.
+where it breaks, then set **Width** in the bar to that (the `?` next to it says the same).
 
 The number is a property of the phone, not of any one table, so it governs everything monospace:
 tables degrade to stay under it, and the preview draws every code block exactly that wide, wrapping
@@ -149,7 +149,9 @@ that table's own panel switches it to List. A table that cannot fit any box says
 and offers the list layout instead of a style that could not change anything.
 
 **Additional table behaviour**
-* Column widths are measured in display cells, so emoji and CJK text stay aligned (`✅`, `日本語` count as two columns).
+* Column widths are measured in display cells, so emoji and CJK text stay aligned (`✅`, `日本語`
+  count as two columns) — as far as the phone allows: those glyphs come from a fallback font too,
+  so the alignment is best effort, unlike the ASCII borders.
 * Column alignment (`:---`, `:---:`, `---:`) is honoured in the box and compact styles.
 * Header-only tables render without an empty body or a doubled border.
 * `<br>` inside a cell becomes a space, and an escaped `\|` becomes `¦` so it cannot fake an extra column.
@@ -237,16 +239,17 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
   table it came from, which is what per-table options are built on — and the
   `mdContainsTable` / `mdContainsHeading` / `mdContainsCode` queries the UI uses to show an
   option only when it applies. Each block of `convertToBlocks` reports the source `line` it
-  starts on, and each table block also its `key`,
-  `columns`, `fitsBox` (a box is possible), `asList` (what was written) and `listLayout`, so the
-  interface can offer exactly the choices left.
+  starts on — what keeps the two panels scrolling together — and each table block also its
+  `key`, `columns`, `fitsBox` (a box is possible), `asList` (what was written) and `listLayout`,
+  so the interface can offer exactly the choices left.
 * `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, scroll sync between the panels, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
 
-Options are `tableFormat` (`auto` | `list`), `monoWidth`, `rowSeparator`, `headingEmojis`, `listLayout` (`auto` | `rows` | `columns` | `pairs`), and
-`tableOverrides` — either an array indexed by the table's position in the document or an object
-keyed by the table's `key` (its header texts joined with `|`, plus `#2`, `#3`… for repeated
-headers), each entry overriding any of the others for that table alone.
+Options are `tableFormat` (`auto` | `list`), `monoWidth`, `rowSeparator`, `headingEmojis`,
+`listLayout` (`auto` | `rows` | `columns` | `pairs`), and `tableOverrides` — either an array
+indexed by the table's position in the document or an object keyed by the table's `key` (its
+header texts joined with `|`, plus `#2`, `#3`… for repeated headers), each entry overriding any
+of the others for that table alone. The page exposes `listLayout` per table only.
 
 The older names are still accepted on input: `tableThreshold` for `monoWidth`, and `ascii` /
 `always` for `tableFormat` (`ascii` never drew a box wider than the bubble, so it maps to `auto`).
