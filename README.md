@@ -97,7 +97,7 @@ whole document or for one table at a time:
    Key-Value detection supports **11 languages**: English, Italian, Spanish, French, Portuguese, German, Russian, Arabic, Hindi, Bengali, and Indonesian.
 
 3. **Auto (Smart Switch)**
-   Degrades progressively until the table fits the configurable limit (default **28 chars**, about what a WhatsApp bubble fits on a 360 px phone):
+   Degrades progressively until the table fits the configurable limit (default **26 chars**):
    1. Full box, removing padding column by column (right-side first, then left-side).
    2. **Compact borderless** style, again removing padding progressively:
       ```

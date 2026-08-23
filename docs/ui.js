@@ -28,7 +28,7 @@
     const emojiToggle = document.getElementById('emoji-toggle');
 
     const OPTIONS_KEY = 'mdwa-options';
-    const options = { tableFormat: 'auto', tableThreshold: 28, borderStyle: 'unicode', rowSeparator: false, headingEmojis: true };
+    const options = { tableFormat: 'auto', tableThreshold: 26, borderStyle: 'unicode', rowSeparator: false, headingEmojis: true };
     // Per-table overrides, keyed by the table's position in the document. Not
     // persisted: they belong to the text being converted, not to the user.
     const tableOverrides = [];
@@ -262,7 +262,7 @@
 
     input.addEventListener('input', render);
     thresholdInput.addEventListener('input', () => {
-        options.tableThreshold = parseInt(thresholdInput.value, 10) || 28;
+        options.tableThreshold = parseInt(thresholdInput.value, 10) || 26;
         update();
     });
     document.querySelectorAll('.fmt-seg button').forEach(btn => {

@@ -37,7 +37,7 @@ const MAX_WRAPPED_LINES_PER_ROW = 2;
 
 const DEFAULT_OPTIONS = {
     tableFormat: 'auto',
-    tableThreshold: 28,
+    tableThreshold: 26,
     borderStyle: 'unicode',
     rowSeparator: false,
     headingEmojis: true
