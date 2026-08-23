@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![tests](https://github.com/drsound/markdown-to-whatsapp/actions/workflows/test.yml/badge.svg)](https://github.com/drsound/markdown-to-whatsapp/actions/workflows/test.yml)
+[![npm](https://img.shields.io/npm/v/markdown-to-whatsapp.svg)](https://www.npmjs.com/package/markdown-to-whatsapp)
 
 Convert standard Markdown into WhatsApp's formatting syntax — as a web page, an npm library, a command line tool or an MCP server for agents.
 
