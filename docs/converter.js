@@ -30,7 +30,6 @@ const HEADER_EMOJIS = {
  * - monoWidth:     how many monospace characters fit on one line of a WhatsApp
  *                  bubble. A property of the reader's phone, not of the table:
  *                  tables degrade to stay under it, and nothing is ever wider.
- * - borderStyle:   'ascii' | 'unicode' box-drawing characters
  * - rowSeparator:  draw a rule between body rows (always drawn when a row wraps)
  * - headingEmojis: prepend a level emoji to headings
  * - listLayout:    'auto' | 'rows' | 'columns' | 'pairs' — how a table reads as
@@ -41,7 +40,6 @@ const HEADER_EMOJIS = {
 const DEFAULT_OPTIONS = {
     tableFormat: 'auto',
     monoWidth: 26,
-    borderStyle: 'unicode',
     rowSeparator: false,
     headingEmojis: true,
     listLayout: 'auto'
@@ -50,24 +48,22 @@ const DEFAULT_OPTIONS = {
 const LIST_LAYOUTS = ['auto', 'rows', 'columns', 'pairs'];
 
 /**
- * Box-drawing characters per border style.
- * `full` is the boxed table, `cm` the column separator of the compact (borderless) style.
+ * Characters the table is drawn with: the corners and junctions (`tl` top-left,
+ * `mm` the header rule crossing…), `h`/`hh` the single and double horizontal
+ * rule, `v` the column separator, `cm` the crossing in the compact style.
+ *
+ * ASCII only, on purpose. WhatsApp's monospace font has no box-drawing glyphs:
+ * a phone takes `─` and `┌` from whatever fallback font it has, at whatever
+ * width that font gives them, and a rule of 26 of them wraps onto two lines
+ * while the text rows next to it do not. Plain `+-|` are the only characters
+ * whose width a monospace font actually promises.
  */
 const BORDERS = {
-    ascii: {
-        tl: '+', tm: '+', tr: '+',
-        ml: '+', mm: '+', mr: '+',
-        bl: '+', bm: '+', br: '+',
-        rl: '+', rm: '+', rr: '+',
-        h: '-', hh: '=', v: '|', cm: '+'
-    },
-    unicode: {
-        tl: '┌', tm: '┬', tr: '┐',
-        ml: '╞', mm: '╪', mr: '╡',
-        bl: '└', bm: '┴', br: '┘',
-        rl: '├', rm: '┼', rr: '┤',
-        h: '─', hh: '═', v: '│', cm: '┼'
-    }
+    tl: '+', tm: '+', tr: '+',
+    ml: '+', mm: '+', mr: '+',
+    bl: '+', bm: '+', br: '+',
+    rl: '+', rm: '+', rr: '+',
+    h: '-', hh: '=', v: '|', cm: '+'
 };
 
 /**
@@ -321,7 +317,8 @@ function normalizeOptions(options) {
     const merged = Object.assign({}, DEFAULT_OPTIONS, canonicalOptions(options) || {});
     const width = parseInt(merged.monoWidth, 10);
     merged.monoWidth = Number.isFinite(width) && width > 0 ? width : DEFAULT_OPTIONS.monoWidth;
-    if (!BORDERS[merged.borderStyle]) merged.borderStyle = DEFAULT_OPTIONS.borderStyle;
+    // `borderStyle` used to choose Unicode box drawing; it is accepted and ignored
+    delete merged.borderStyle;
     if (merged.tableFormat !== 'list') merged.tableFormat = 'auto';
     if (!LIST_LAYOUTS.includes(merged.listLayout)) merged.listLayout = DEFAULT_OPTIONS.listLayout;
     merged.rowSeparator = Boolean(merged.rowSeparator);
@@ -1028,8 +1025,10 @@ function tableCellText(cell) {
     return renderPlainText(cell.tokens)
         .replace(/\s*\n\s*/g, ' ')
         .replace(/\s+/g, ' ')
-        // An escaped pipe would read as a column separator inside the grid
-        .replace(/\|/g, '∣')
+        // An escaped pipe would read as a column separator inside the grid.
+        // The stand-in is Latin-1, like the accented letters, so it comes from
+        // the same monospace font as the rest and keeps the column aligned
+        .replace(/\|/g, '¦')
         .trim();
 }
 
@@ -1209,11 +1208,11 @@ function fenceTable(lines) {
  * @param {number[]} colWidths
  * @param {Array} align
  * @param {Object} layout - { border, leftPadding, rightPadding }
- * @param {Object} opts - Conversion options (borderStyle, rowSeparator)
+ * @param {Object} opts - Conversion options (rowSeparator)
  * @returns {string[]} lines
  */
 function renderTableGrid(headerGroup, bodyGroups, colWidths, align, layout, opts) {
-    const chars = BORDERS[opts.borderStyle] || BORDERS.ascii;
+    const chars = BORDERS;
 
     const renderRow = (cells) => {
         const parts = colWidths.map((width, i) => {

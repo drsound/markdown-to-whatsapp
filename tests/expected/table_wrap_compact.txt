@@ -1,10 +1,10 @@
 ```
- Hypervisor │ Storage
-            │ notes
-────────────┼─────────────
- Proxmox    │ ZFS with
-            │ replication
-────────────┼─────────────
- ESXi       │ VMFS
-            │ datastores
+ Hypervisor | Storage
+            | notes
+------------+-------------
+ Proxmox    | ZFS with
+            | replication
+------------+-------------
+ ESXi       | VMFS
+            | datastores
 ```

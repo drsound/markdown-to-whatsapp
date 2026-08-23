@@ -66,11 +66,11 @@ table at a time:
 1. **Auto** (default): a drawn table inside a monospace block, as wide as it needs and never
    wider than the bubble — and the bulleted list when no box can be drawn at all.
    ```
-   ┌────────┬─────────────┐
-   │ Name   │ Description │
-   ╞════════╪═════════════╡
-   │ Value  │ Details     │
-   └────────┴─────────────┘
+   +--------+-------------+
+   | Name   | Description |
+   +========+=============+
+   | Value  | Details     |
+   +--------+-------------+
    ```
 
 2. **List**: always the bulleted list.
@@ -123,23 +123,23 @@ nothing does. There is no way to ask for a table wider than the bubble.
 1. Full box, removing padding column by column (right-side first, then left-side).
 2. **Compact borderless** style, again removing padding progressively:
    ```
-    Head1│Head2       │Head-N
-   ──────┼────────────┼──────
-    A    │BBBBBBBBBBBB│C
+    Head1|Head2       |Head-N
+   ------+------------+------
+    A    |BBBBBBBBBBBB|C
    ```
 3. **Wrapped** box, full borders first and then compact: each column gets at least its longest
    word, the remaining width is shared proportionally and cells are word-wrapped. Rows grow as
    tall as they need — there is no limit — and a rule is always drawn between them, since two
    wrapped rows without one run into each other. Cells align to the top of their row.
    ```
-   ┌─────────┬──────────────┐
-   │ Feature │ Notes here   │
-   ╞═════════╪══════════════╡
-   │ Alpha   │ short note   │
-   ├─────────┼──────────────┤
-   │ Beta    │ a slightly   │
-   │         │ longer note  │
-   └─────────┴──────────────┘
+   +---------+--------------+
+   | Feature | Notes here   |
+   +=========+==============+
+   | Alpha   | short note   |
+   +---------+--------------+
+   | Beta    | a slightly   |
+   |         | longer note  |
+   +---------+--------------+
    ```
 4. **Bulleted List**, when not even the longest words fit (a long URL, five columns at 26
    characters…).
@@ -152,8 +152,12 @@ and offers the list layout instead of a style that could not change anything.
 * Column widths are measured in display cells, so emoji and CJK text stay aligned (`✅`, `日本語` count as two columns).
 * Column alignment (`:---`, `:---:`, `---:`) is honoured in the box and compact styles.
 * Header-only tables render without an empty body or a doubled border.
-* `<br>` inside a cell becomes a space, and an escaped `\|` becomes `∣` so it cannot fake an extra column.
-* **Border style** defaults to Unicode box drawing (`┌───┐`); ASCII (`+---+`) can be chosen in the UI. It is a document-wide choice, not a per-table one.
+* `<br>` inside a cell becomes a space, and an escaped `\|` becomes `¦` so it cannot fake an extra column.
+* **Borders are plain ASCII** (`+-|=`), on purpose. WhatsApp's monospace font has no box-drawing
+  glyphs: a phone takes `─` and `┌` from whatever fallback font it has, at whatever width that
+  font gives them, and a rule of 26 of them wraps onto two lines while the text rows next to it
+  do not. `+-|` are the only characters whose width a monospace font actually promises — which
+  is also why the escaped pipe becomes `¦`, a Latin-1 character from the same font as `à`.
 * **Row separator** (default off) draws a rule between body rows, in every boxed and compact style;
   a wrapped table draws it regardless.
 * The **style**, the **row separator** and the **list layout** can be set **per table**: hovering
@@ -196,9 +200,9 @@ mid-word, and a chat bubble has no horizontal scroll — so the preview reproduc
 The interface follows the **operating system's light or dark theme**; the header toggle
 overrides it and that choice is remembered.
 The options bar has one section per kind of content, each shown only while the text contains
-it: **Bubble** (the width, when there is a table or a code block), **Tables** (style, border,
+it: **Bubble** (the width, when there is a table or a code block), **Tables** (style and
 separator) and **Headings** (the emoji prefix). A control that another setting makes pointless
-— the border and the separator in List style, the width with nothing monospace to draw — is
+— the separator in List style, the width with nothing monospace to draw — is
 dimmed in place rather than removed, so the bar keeps its shape. The options are stored in
 `localStorage` along with the theme. Per-table choices are not stored: they belong to the
 text being converted.
@@ -239,8 +243,7 @@ Tests also run in CI on every push and pull request (`.github/workflows/test.yml
 * `docs/ui.js` - page wiring: theme, contextual options, WhatsApp preview, scroll sync between the panels, copy and share
 * `docs/index.html`, `docs/style.css` - markup and hand-written stylesheet (no CSS framework)
 
-Options are `tableFormat` (`auto` | `list`), `monoWidth`, `borderStyle` (`unicode` | `ascii`),
-`rowSeparator`, `headingEmojis`, `listLayout` (`auto` | `rows` | `columns` | `pairs`), and
+Options are `tableFormat` (`auto` | `list`), `monoWidth`, `rowSeparator`, `headingEmojis`, `listLayout` (`auto` | `rows` | `columns` | `pairs`), and
 `tableOverrides` — either an array indexed by the table's position in the document or an object
 keyed by the table's `key` (its header texts joined with `|`, plus `#2`, `#3`… for repeated
 headers), each entry overriding any of the others for that table alone.
@@ -248,6 +251,7 @@ headers), each entry overriding any of the others for that table alone.
 The older names are still accepted on input: `tableThreshold` for `monoWidth`, and `ascii` /
 `always` for `tableFormat` (`ascii` never drew a box wider than the bubble, so it maps to `auto`).
 When both the old and the new name are given, the new one wins and the old is dropped.
+`borderStyle`, which used to choose Unicode box drawing, is accepted and ignored.
 
 The [marked](https://github.com/markedjs/marked) version is pinned to **18.0.10** in both
 `docs/index.html` (with an SRI hash) and `tests/package.json`, so the page and the tests

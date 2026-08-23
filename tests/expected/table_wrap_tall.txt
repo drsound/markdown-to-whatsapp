@@ -1,21 +1,21 @@
 ```
- Attribute │ Value
-───────────┼──────────────
- Processor │ Intel Xeon
-           │ Gold 6248R @
-           │ 3.0 GHz (24
-           │ cores)
-───────────┼──────────────
- Memory    │ 256 GB
-           │ DDR4-3200 ECC
-           │ Registered
-───────────┼──────────────
- Primary   │ 2x 1TB NVMe
- Storage   │ SSD in RAID 1
-           │ configuration
-───────────┼──────────────
- Network   │ Dual 25 Gbps
- Interface │ Ethernet with
-           │ SR-IOV
-           │ support
+ Attribute | Value
+-----------+--------------
+ Processor | Intel Xeon
+           | Gold 6248R @
+           | 3.0 GHz (24
+           | cores)
+-----------+--------------
+ Memory    | 256 GB
+           | DDR4-3200 ECC
+           | Registered
+-----------+--------------
+ Primary   | 2x 1TB NVMe
+ Storage   | SSD in RAID 1
+           | configuration
+-----------+--------------
+ Network   | Dual 25 Gbps
+ Interface | Ethernet with
+           | SR-IOV
+           | support
 ```

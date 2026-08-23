@@ -1,4 +1,0 @@
-| Env | Status |
-|-----|--------|
-| Staging | Live |
-| Prod | Friday |

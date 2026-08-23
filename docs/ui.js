@@ -19,8 +19,6 @@
     const loadExample = document.getElementById('load-example');
     const themeLight = document.getElementById('theme-light');
     const themeDark = document.getElementById('theme-dark');
-    const borderSeg = document.getElementById('border-seg');
-    const borderControls = document.getElementById('border-controls');
     const widthControls = document.getElementById('width-controls');
     const bubbleSection = document.getElementById('bubble-section');
     const tablesSection = document.getElementById('tables-section');
@@ -73,8 +71,6 @@
         setCheck(rowsToggle, options.rowSeparator);
         document.querySelectorAll('.fmt-seg button').forEach(b =>
             b.classList.toggle('active', b.dataset.fmt === options.tableFormat));
-        borderSeg.querySelectorAll('button').forEach(b =>
-            b.classList.toggle('active', b.dataset.border === options.borderStyle));
     }
 
     function storeOptions() {
@@ -307,7 +303,6 @@
         bubbleSection.hidden = !(hasTable || hasCode);
         setEnabled(widthControls, hasCode || !isList);
         tablesSection.hidden = !hasTable;
-        setEnabled(borderControls, !isList);
         setEnabled(rowsControls, !isList);
         headingsSection.hidden = !hasHeading;
 
@@ -442,13 +437,6 @@
         btn.addEventListener('click', () => {
             options.tableFormat = btn.dataset.fmt;
             document.querySelectorAll('.fmt-seg button').forEach(b => b.classList.toggle('active', b === btn));
-            update();
-        });
-    });
-    borderSeg.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', () => {
-            options.borderStyle = btn.dataset.border;
-            borderSeg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
             update();
         });
     });

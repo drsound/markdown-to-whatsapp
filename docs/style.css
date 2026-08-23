@@ -130,9 +130,6 @@ body {
 .check.active .check-box { background: var(--accent); border-color: var(--accent); }
 .check.active .check-box::after { opacity: 1; }
 
-.border-seg { padding: 3px; }
-.border-seg button { font-size: 11.5px; letter-spacing: 0.02em; padding: 5px 10px; }
-.border-seg button.active { background: var(--accent); color: var(--accentText); }
 
 .numfield { display: flex; align-items: center; gap: 4px; background: var(--card); border-radius: 999px; padding: 5px 11px; }
 .numfield-unit { font: 700 11px 'Nunito Sans', sans-serif; color: var(--muted); }
