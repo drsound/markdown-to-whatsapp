@@ -210,6 +210,14 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
     background: var(--card); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
     transform: rotate(45deg);
 }
+/* The caret grows out of whatever sits at the panel's foot: the reset bar,
+   when there is one, tints it the same (hover included) */
+.bubble .pv-table:not(.pv-flip) .pv-table-controls:has(.pv-reset)::after {
+    background: linear-gradient(var(--warnBg), var(--warnBg)) var(--card);
+}
+.bubble .pv-table:not(.pv-flip) .pv-table-controls:has(.pv-reset:hover)::after {
+    background: linear-gradient(var(--warnBgHover), var(--warnBgHover)) var(--card);
+}
 /* A table near the top of the chat has no room above: the panel drops below it
    instead, since #chat scrolls and would clip it away */
 .bubble .pv-table.pv-flip .pv-table-controls { bottom: auto; top: calc(100% + 10px); transform: translateY(-5px); }
@@ -255,7 +263,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 /* ---- Actions ---- */
 .actions { display: flex; gap: 12px; }
 #copy-button {
-    flex: 1.4; display: flex; align-items: center; justify-content: center; gap: 8px;
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
     background: var(--accent); border: none; color: var(--accentText);
     font: 800 14px 'Nunito Sans', sans-serif; padding: 14px; border-radius: 16px;
     cursor: pointer; box-shadow: 0 8px 20px rgba(45, 212, 127, 0.22); transition: all 0.2s;
