@@ -6,12 +6,18 @@
   "keywords": [
     "whatsapp",
     "markdown",
+    "markdown-to-whatsapp",
+    "whatsapp-formatting",
+    "markdown-converter",
     "converter",
     "formatting",
+    "text-formatting",
     "tables",
+    "ascii-table",
     "cli",
     "mcp",
     "mcp-server",
+    "model-context-protocol",
     "agents"
   ],
   "license": "MIT",
