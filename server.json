@@ -6,13 +6,13 @@
     "url": "https://github.com/drsound/markdown-to-whatsapp",
     "source": "github"
   },
-  "version": "1.0.2",
+  "version": "1.0.3",
   "websiteUrl": "https://drsound.github.io/markdown-to-whatsapp/",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "markdown-to-whatsapp",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "transport": {
         "type": "stdio"
       },

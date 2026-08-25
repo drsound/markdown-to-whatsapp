@@ -8,7 +8,10 @@ import { convertToBlocks, DEFAULT_OPTIONS } from '../docs/converter.js';
 // The description is what the model reads to decide whether to call the tool:
 // it has to say what the tool does that the model would get wrong on its own
 const DESCRIPTION = `Convert Markdown into the formatting WhatsApp renders (*bold*, _italic_, ~strike~, \`code\`, lists, quotes), ready to paste or send.
-Use it instead of hand-writing WhatsApp syntax whenever the text has tables, nested lists, headings or inline formatting next to punctuation: it applies WhatsApp's real rules (markers only on word boundaries, escapes that WhatsApp does not interpret, no mid-word formatting) and draws each table as a monospace box that fits the reader's phone — padding removed, then borders, then cells word-wrapped — falling back to a bulleted list only when no box fits. Counting columns against a 26-character bubble is exactly what this tool does and a model does not.`;
+Use it instead of hand-writing WhatsApp syntax whenever the text has tables, nested lists, headings or inline formatting next to punctuation.
+It applies WhatsApp's real rules: markers only on word boundaries, escapes that WhatsApp does not interpret, no mid-word formatting.
+Each table is drawn as a monospace box sized to the reader's phone, degrading in this order: cell padding removed, then borders, then cells word-wrapped. It becomes a bulleted list only when no box fits.
+Counting columns against a 26-character bubble is exactly what this tool does and a model does not.`;
 
 const inputSchema = z.object({
     markdown: z.string().describe('The Markdown text to convert'),
